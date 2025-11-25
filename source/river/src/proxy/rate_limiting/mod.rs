@@ -3,11 +3,6 @@ use std::{ops::Deref, sync::Arc};
 use leaky_bucket::RateLimiter;
 use regex::Regex;
 
-use self::{
-    multi::{MultiRaterConfig, MultiRequestKeyKind},
-    single::{SingleInstanceConfig, SingleRequestKeyKind},
-};
-
 //
 // We have two kinds of rate limiters:
 //
@@ -17,18 +12,6 @@ use self::{
 //   which uses a single bucket for all matching URIs
 pub mod multi;
 pub mod single;
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum AllRateConfig {
-    Single {
-        kind: SingleRequestKeyKind,
-        config: SingleInstanceConfig,
-    },
-    Multi {
-        kind: MultiRequestKeyKind,
-        config: MultiRaterConfig,
-    },
-}
 
 #[derive(Debug, Clone)]
 pub struct RegexShim(pub Regex);

@@ -1,13 +1,12 @@
 pub mod cli;
 pub mod internal;
 pub mod kdl;
-pub mod toml;
+pub mod common_types;
 
 use std::fs::read_to_string;
 
 use clap::Parser;
 use cli::Cli;
-use crate::config::toml::Toml;
 
 pub fn render_config() -> internal::Config {
     // To begin with, start with the blank internal config. We will layer on top of that.
@@ -23,7 +22,8 @@ pub fn render_config() -> internal::Config {
         "CLI config"
     );
 
-    let toml_opts = c.config_toml.as_ref().map(Toml::from_path);
+
+    // let toml_opts = c.config_toml.as_ref().map(Toml::from_path);
 
     let kdl_opts = c.config_kdl.as_ref().map(|kdl_path| {
         let kdl_contents = read_to_string(kdl_path).unwrap_or_else(|e| {
@@ -45,19 +45,15 @@ pub fn render_config() -> internal::Config {
     //
     // Apply in reverse order as we are layering.
     // match (toml_opts)
-    match (toml_opts, kdl_opts) {
-        (Some(tf), None) => {
-            tracing::info!("Applying TOML options");
-            apply_toml(&mut config, &tf);
-        }
-        (None, Some(kf)) => {
+    match (kdl_opts) {
+        Some(kf) => {
             tracing::info!("Applying KDL options");
             config = kf;
         }
-        (None, None) => {
+        None => {
             tracing::info!("No configuration file provided");
         }
-        (Some(_), Some(_)) => {
+        Some(_) => {
             tracing::error!("Refusing to merge KDL and TOML options: Please choose one.");
             panic!("Too many configuration options selected!");
         }
@@ -118,23 +114,3 @@ fn apply_cli(conf: &mut internal::Config, cli: &Cli) {
     }
 }
 
-fn apply_toml(conf: &mut internal::Config, toml: &Toml) {
-    let Toml {
-        system,
-        basic_proxy,
-    } = toml;
-
-    let basic_proxy: Vec<internal::ProxyConfig> =
-        basic_proxy.iter().cloned().map(Into::into).collect();
-
-    // As toml is a configuration file, it should SET the value. We have to later consider
-    // if we EXTEND or REPLACE when used with more config file formats, or allow for setting
-    // of proxies in env/cli options.
-    assert!(
-        conf.basic_proxies.is_empty(),
-        "Non-empty 'basic proxies' list when applying TOML settings. This is unexpected."
-    );
-    conf.basic_proxies = basic_proxy;
-
-    conf.threads_per_service = system.threads_per_service;
-}

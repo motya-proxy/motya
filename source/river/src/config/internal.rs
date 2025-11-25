@@ -6,17 +6,19 @@
 //! This is used as the buffer between any external stable UI, and internal
 //! impl details which may change at any time.
 
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 
 use pingora::{
     server::configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf},
-    upstreams::peer::HttpPeer,
 };
+
 use tracing::warn;
 
-use crate::proxy::{
-    rate_limiting::AllRateConfig,
-    request_selector::{null_selector, RequestSelector},
+use crate::{
+    config::common_types::{
+            connectors::Connectors, file_server::FileServerConfig, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig
+        },
+    proxy::request_selector::{RequestSelector, null_selector},
 };
 
 /// River's internal configuration
@@ -113,41 +115,13 @@ impl Config {
 }
 
 
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct RateLimitingConfig {
-    pub(crate) rules: Vec<AllRateConfig>,
-}
 #[derive(Debug, Clone)]
 pub struct SimpleResponse {
     pub http_code: http::StatusCode,
     pub response_body: String
 }
-#[derive(Debug, Clone)]
-pub enum Upstream {
-    Service(HttpPeer),
-    Static(SimpleResponse)
-}
 
-/// Add Path Control Modifiers
-///
-/// Note that we use `BTreeMap` and NOT `HashMap`, as we want to maintain the
-/// ordering from the configuration file.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct PathControl {
-    pub(crate) request_filters: Vec<BTreeMap<String, String>>,
-    pub(crate) upstream_request_filters: Vec<BTreeMap<String, String>>,
-    pub(crate) upstream_response_filters: Vec<BTreeMap<String, String>>,
-}
 
-//
-// File Server Configuration
-//
-#[derive(Debug, Clone)]
-pub struct FileServerConfig {
-    pub(crate) name: String,
-    pub(crate) listeners: Vec<ListenerConfig>,
-    pub(crate) base_path: Option<PathBuf>,
-}
 
 //
 // Basic Proxy Configuration
@@ -156,9 +130,8 @@ pub struct FileServerConfig {
 #[derive(Debug, Clone)]
 pub struct ProxyConfig {
     pub(crate) name: String,
-    pub(crate) listeners: Vec<ListenerConfig>,
-    pub(crate) upstream_options: UpstreamOptions,
-    pub(crate) upstreams: Vec<Upstream>,
+    pub(crate) listeners: Listeners,
+    pub(crate) connectors: Connectors,
     pub(crate) path_control: PathControl,
     pub(crate) rate_limiting: RateLimitingConfig,
 }
@@ -169,20 +142,6 @@ pub struct TlsConfig {
     pub(crate) key_path: PathBuf,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct ListenerConfig {
-    pub(crate) source: ListenerKind,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ListenerKind {
-    Tcp {
-        addr: String,
-        tls: Option<TlsConfig>,
-        offer_h2: bool,
-    },
-    Uds(PathBuf),
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct UpstreamOptions {

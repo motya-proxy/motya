@@ -2,8 +2,7 @@ mod config;
 mod files;
 mod proxy;
 
-use crate::{files::river_file_server, proxy::river_proxy_service};
-use config::internal::{ListenerConfig, ListenerKind};
+use crate::{config::common_types::listeners::{ListenerKind, Listeners}, files::river_file_server, proxy::river_proxy_service};
 use pingora::{server::Server, services::Service};
 use pingora_core::listeners::tls::TlsSettings;
 
@@ -25,8 +24,8 @@ fn main() {
     // control, but don't support things like load balancing, health checks, etc.
     for beep in conf.basic_proxies {
         tracing::info!("Configuring Basic Proxy: {}", beep.name);
-        let service = river_proxy_service(beep, &my_server);
-        services.push(service);
+        let river_services = river_proxy_service(beep, &my_server);
+        services.extend(river_services);
     }
 
     for fs in conf.file_servers {
@@ -45,16 +44,16 @@ fn main() {
 }
 
 pub fn populate_listners<T>(
-    listeners: Vec<ListenerConfig>,
+    listeners: &Listeners,
     service: &mut pingora_core::services::listening::Service<T>,
 ) {
-    for list_cfg in listeners {
+    for list_cfg in listeners.list_cfgs.iter() {
         // NOTE: See https://github.com/cloudflare/pingora/issues/182 for tracking "paths aren't
         // always UTF-8 strings".
         //
         // See also https://github.com/cloudflare/pingora/issues/183 for tracking "ip addrs shouldn't
         // be strings"
-        match list_cfg.source {
+        match &list_cfg.source {
             ListenerKind::Tcp {
                 addr,
                 tls: Some(tls_cfg),
@@ -69,7 +68,7 @@ pub fn populate_listners<T>(
                 // TODO: Make conditional!
                 let mut settings = TlsSettings::intermediate(cert_path, key_path)
                     .expect("adding TLS listener shouldn't fail");
-                if offer_h2 {
+                if *offer_h2 {
                     settings.enable_h2();
                 }
 
@@ -80,7 +79,7 @@ pub fn populate_listners<T>(
                 tls: None,
                 offer_h2,
             } => {
-                if offer_h2 {
+                if *offer_h2 {
                     panic!("Unsupported configuration: {addr:?} configured without TLS, but H2 enabled which requires TLS");
                 }
                 service.add_tcp(&addr);

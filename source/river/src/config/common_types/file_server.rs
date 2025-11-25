@@ -1,0 +1,17 @@
+use std::path::PathBuf;
+
+use crate::config::common_types::listeners::Listeners;
+
+//
+// File Server Configuration
+//
+#[derive(Debug, Clone)]
+pub struct FileServerConfig {
+    pub(crate) name: String,
+    pub(crate) listeners: Listeners,
+    pub(crate) base_path: Option<PathBuf>,
+}
+
+pub trait FileServerSectionParser<T> {
+    fn parse_node(&self, node: &T) -> miette::Result<FileServerConfig>;
+}

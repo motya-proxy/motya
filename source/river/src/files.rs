@@ -8,7 +8,7 @@ use pingora_core::Result;
 use pingora_proxy::{ProxyHttp, Session};
 use static_files_module::{StaticFilesConf, StaticFilesHandler};
 
-use crate::{config::internal::FileServerConfig, populate_listners};
+use crate::{config::common_types::file_server::FileServerConfig, populate_listners};
 
 /// Create a new file serving service
 pub fn river_file_server(
@@ -30,7 +30,7 @@ pub fn river_file_server(
     let mut my_proxy =
         pingora_proxy::http_proxy_service_with_name(&server.configuration, file_server, &conf.name);
 
-    populate_listners(conf.listeners, &mut my_proxy);
+    populate_listners(&conf.listeners, &mut my_proxy);
 
     Box::new(my_proxy)
 }

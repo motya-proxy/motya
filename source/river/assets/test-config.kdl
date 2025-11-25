@@ -4,7 +4,7 @@ system {
     // Should the server daemonize and run in the background?
     //
     // NOTE: If this is "true", then "pid-file" must be set
-    daemonize #true 
+    daemonize #false 
 
     // Path to the pidfile used when daemonizing
     //
@@ -83,7 +83,7 @@ services {
                 discovery "Static"
                 health-check "None"
             }
-            "91.107.223.4:443" tls-sni="onevariable.com" proto="h2-or-h1"
+            proxy "91.107.223.4:443" tls-sni="onevariable.com" proto="h2-or-h1"
         }
 
         // Path control are optional modifiers for requests and responses
@@ -111,7 +111,7 @@ services {
             "0.0.0.0:8000"
         }
         connectors {
-            "91.107.223.4:80"
+            proxy "91.107.223.4:80"
         }
     }
 

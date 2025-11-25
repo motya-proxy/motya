@@ -1,8 +1,9 @@
 //! Various ad-hoc KDL document parsers used
 
-use super::{Bad, OptExtParse};
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 use std::collections::HashMap;
+
+use crate::config::common_types::bad::{Bad, OptExtParse};
 
 /// Get the child document with a given name, or return an error
 ///
@@ -208,4 +209,27 @@ pub(crate) fn extract_one_str_arg_with_kv_args<T, F: FnOnce(&str) -> Option<T>>(
     })?;
 
     Ok((first, kvs))
+}
+
+pub trait HashMapValidationExt {
+    fn ensure_only_keys(self, allowed: &[&str], doc: &KdlDocument, node: &KdlNode) -> miette::Result<Self>
+    where
+        Self: Sized;
+}
+
+impl<V> HashMapValidationExt for HashMap<&str, V> {
+    fn ensure_only_keys(self, allowed: &[&str], doc: &KdlDocument, node: &KdlNode) -> miette::Result<Self> {
+        
+        if let Some(bad_key) = self.keys().find(|k| !allowed.contains(k)) {
+            return Err(                
+                Bad::docspan(
+                    format!("Unknown configuration key: '{bad_key}'. Allowed keys are: {:?}", allowed),
+                    doc,
+                    &node.span(),
+                )
+            .into());
+        }
+        
+        Ok(self)
+    }
 }

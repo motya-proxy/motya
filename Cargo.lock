@@ -2651,6 +2651,7 @@ dependencies = [
  "concread",
  "futures-util",
  "http",
+ "itertools",
  "kdl",
  "lazy_static",
  "leaky-bucket",

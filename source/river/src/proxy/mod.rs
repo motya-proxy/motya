@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use async_trait::async_trait;
 use futures_util::FutureExt;
 
-use pingora::{server::Server, Error, ErrorType};
+use pingora::{Error, ErrorType, listeners, server::Server};
 use pingora_core::{upstreams::peer::HttpPeer, Result};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_load_balancing::{
@@ -22,7 +22,7 @@ use pingora_load_balancing::{
 use pingora_proxy::{ProxyHttp, Session};
 
 use crate::{
-    config::internal::{PathControl, ProxyConfig, SelectionKind, Upstream},
+    config::{common_types::{connectors::{Connectors, Upstream, UpstreamWithContext}, listeners::Listeners, path_control::{self, PathControl}, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}},
     populate_listners,
     proxy::{
         request_modifiers::RequestModifyMod, request_selector::RequestSelector,
@@ -67,18 +67,26 @@ pub struct RiverProxyService<BS: BackendSelection> {
 pub fn river_proxy_service(
     conf: ProxyConfig,
     server: &Server,
-) -> Box<dyn pingora::services::Service> {
+) -> Vec<Box<dyn pingora::services::Service>> {
     // Pick the correctly monomorphized function. This makes the functions all have the
     // same signature of `fn(...) -> Box<dyn Service>`.
-    type ServiceMaker = fn(ProxyConfig, &Server) -> Box<dyn pingora::services::Service>;
+    type ServiceMaker = fn(UpstreamWithContext, &PathControl, &RateLimitingConfig, &Listeners, &Server) -> Box<dyn pingora::services::Service>;
 
-    let service_maker: ServiceMaker = match conf.upstream_options.selection {
-        SelectionKind::RoundRobin => RiverProxyService::<RoundRobin>::from_basic_conf,
-        SelectionKind::Random => RiverProxyService::<Random>::from_basic_conf,
-        SelectionKind::Fnv => RiverProxyService::<FVNHash>::from_basic_conf,
-        SelectionKind::Ketama => RiverProxyService::<KetamaHashing>::from_basic_conf,
-    };
-    service_maker(conf, server)
+    let mut servers = vec![];
+
+    for upstream_with_ctx in conf.connectors.upstreams {
+    
+        let service_maker: ServiceMaker = match upstream_with_ctx.lb_options.selection {
+            SelectionKind::RoundRobin => RiverProxyService::<RoundRobin>::from_basic_conf,
+            SelectionKind::Random => RiverProxyService::<Random>::from_basic_conf,
+            SelectionKind::Fnv => RiverProxyService::<FVNHash>::from_basic_conf,
+            SelectionKind::Ketama => RiverProxyService::<KetamaHashing>::from_basic_conf,
+        };
+
+        servers.push(service_maker(upstream_with_ctx, &conf.path_control, &conf.rate_limiting, &conf.listeners, server));
+    }
+
+    servers
 }
 
 impl<BS> RiverProxyService<BS>
@@ -88,24 +96,27 @@ where
 {
     /// Create a new [RiverProxyService] from the given [ProxyConfig]
     pub fn from_basic_conf(
-        conf: ProxyConfig,
+        upstream_with_ctx: UpstreamWithContext,
+        path_control: &PathControl,
+        rate_limiting: &RateLimitingConfig,
+        listeners: &Listeners,
         server: &Server,
     ) -> Box<dyn pingora::services::Service> {
-        let mut modifiers = Modifiers::from_conf(&conf.path_control).unwrap();
+
+        let mut modifiers = Modifiers::from_conf(&path_control).unwrap();
 
         // TODO: This maybe could be done cleaner? This is a sort-of inlined
         // version of `LoadBalancer::try_from_iter` with the ability to add
         // metadata extensions
         let mut backends = BTreeSet::new();
         let mut static_roots: Vec<Box<dyn RequestFilterMod>> = vec![];
-        for uppy in conf.upstreams {
-            match uppy {
-                Upstream::Static(response) => static_roots.push(Box::new(response)),
-                Upstream::Service(s) => {
-                    let mut backend =  Backend::new(&s._address.to_string()).unwrap();
-                    assert!(backend.ext.insert(s).is_none());
-                    backends.insert(backend);
-                }
+
+        match upstream_with_ctx.upstream {
+            Upstream::Static(response) => static_roots.push(Box::new(response)),
+            Upstream::Service(s) => {
+                let mut backend =  Backend::new(&s.peer._address.to_string()).unwrap();
+                assert!(backend.ext.insert(s.peer).is_none());
+                backends.insert(backend);
             }
         }
         
@@ -123,13 +134,13 @@ where
         let mut request_filter_stage_multi = vec![];
         let mut request_filter_stage_single = vec![];
 
-        for rule in conf.rate_limiting.rules {
+        for rule in rate_limiting.rules.clone() {
             match rule {
-                rate_limiting::AllRateConfig::Single { kind, config } => {
+                AllRateConfig::Single { kind, config } => {
                     let rater = SingleInstance::new(config, kind);
                     request_filter_stage_single.push(rater);
                 }
-                rate_limiting::AllRateConfig::Multi { kind, config } => {
+                AllRateConfig::Multi { kind, config } => {
                     let rater = MultiRaterInstance::new(config, kind);
                     request_filter_stage_multi.push(rater);
                 }
@@ -141,16 +152,16 @@ where
             Self {
                 modifiers,
                 load_balancer: upstreams,
-                request_selector: conf.upstream_options.selector,
+                request_selector: upstream_with_ctx.lb_options.selector,
                 rate_limiters: RateLimiters {
                     request_filter_stage_multi,
                     request_filter_stage_single,
                 },
             },
-            &conf.name,
+            "ADADWDWDWDW",
         );
 
-        populate_listners(conf.listeners, &mut my_proxy);
+        populate_listners(listeners, &mut my_proxy);
 
         Box::new(my_proxy)
     }
@@ -313,7 +324,7 @@ where
             .any(|t| t.now_or_never() == Outcome::Declined)
         {
             tracing::trace!("Rejecting due to rate limiting failure");
-            session.downstream_session.respond_error(429).await;
+            session.downstream_session.respond_error(429).await?;
             return Ok(true);
         }
 
