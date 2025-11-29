@@ -1,16 +1,10 @@
-use crate::config::{common_types::{
-    connectors::ConnectorsSectionParser, 
-    listeners::ListenersSectionParser, 
-    path_control::PathControlSectionParser, 
-    rate_limiter::RateLimitSectionParser
-}, internal::ProxyConfig
-};
+use crate::config::{common_types::{SectionParser, connectors::Connectors, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig}, internal::ProxyConfig};
 
 pub struct ServiceSection<'a, T> {
-    listeners: &'a dyn ListenersSectionParser<T>,
-    connectors: &'a dyn ConnectorsSectionParser<T>,
-    pc: &'a dyn PathControlSectionParser<T>,
-    rl: &'a dyn RateLimitSectionParser<T>,
+    listeners: &'a dyn SectionParser<T, Listeners>,
+    connectors: &'a dyn SectionParser<T, Connectors>,
+    pc: &'a dyn SectionParser<T, PathControl>,
+    rl: &'a dyn SectionParser<T, RateLimitingConfig>,
     name: &'a str
 }
 
@@ -20,10 +14,10 @@ pub trait ServiceSectionParser<T> {
 
 impl<'a, T> ServiceSection<'a, T> {
     pub fn new(
-        listeners: &'a dyn ListenersSectionParser<T>,
-        connectors: &'a dyn ConnectorsSectionParser<T>,
-        pc: &'a dyn PathControlSectionParser<T>,
-        rl: &'a dyn RateLimitSectionParser<T>,
+        listeners: &'a dyn SectionParser<T, Listeners>,
+        connectors: &'a dyn SectionParser<T, Connectors>,
+        pc: &'a dyn SectionParser<T, PathControl>,
+        rl: &'a dyn SectionParser<T, RateLimitingConfig>,
         name: &'a str
     ) -> Self {
         Self { listeners, connectors, pc, rl, name }

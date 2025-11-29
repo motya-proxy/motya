@@ -49,7 +49,3 @@ pub enum AllRateConfig {
 pub struct RateLimitingConfig {
     pub(crate) rules: Vec<AllRateConfig>,
 }
-
-pub trait RateLimitSectionParser<T> {
-    fn parse_node(&self, node: &T) -> miette::Result<RateLimitingConfig>;
-}

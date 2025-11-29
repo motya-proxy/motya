@@ -1,16 +1,13 @@
-use std::collections::BTreeMap;
-
 use async_trait::async_trait;
 use bytes::Bytes;
-use cidr::IpCidr;
-use http::StatusCode;
-use pingora::ErrorType;
-use pingora_core::{protocols::l4::socket::SocketAddr, Error, Result};
+use pingora_core::Result;
 use pingora_http::ResponseHeader;
 use pingora_proxy::Session;
 
-use crate::{config::internal::SimpleResponse, proxy::{RiverContext, extract_val, request_filters::RequestFilterMod}};
-
+use crate::{
+    config::internal::SimpleResponse, 
+    proxy::{RiverContext, filters::types::RequestFilterMod}
+};
 
 
 #[async_trait]

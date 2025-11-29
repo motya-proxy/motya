@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use pingora_core::Result;
 use pingora_proxy::Session;
-use crate::proxy::{RiverContext, request_filters::RequestFilterMod, wasm_modules::module::{WasmModuleFilter, WasmModuleFilterTrait}};
-pub mod module;
+use crate::proxy::{RiverContext, filters::types::RequestFilterMod, plugins::module::{self, WasmModuleFilter, WasmModuleFilterTrait}};
+
 
 #[async_trait]
 impl RequestFilterMod for WasmModuleFilter {

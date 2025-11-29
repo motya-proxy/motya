@@ -8,6 +8,7 @@
 
 use std::path::PathBuf;
 
+use http::Uri;
 use pingora::{
     server::configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf},
 };
@@ -118,7 +119,8 @@ impl Config {
 #[derive(Debug, Clone)]
 pub struct SimpleResponse {
     pub http_code: http::StatusCode,
-    pub response_body: String
+    pub response_body: String,
+    pub prefix_path: Uri
 }
 
 
@@ -127,7 +129,7 @@ pub struct SimpleResponse {
 // Basic Proxy Configuration
 //
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct ProxyConfig {
     pub(crate) name: String,
     pub(crate) listeners: Listeners,
@@ -135,13 +137,6 @@ pub struct ProxyConfig {
     pub(crate) path_control: PathControl,
     pub(crate) rate_limiting: RateLimitingConfig,
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct TlsConfig {
-    pub(crate) cert_path: PathBuf,
-    pub(crate) key_path: PathBuf,
-}
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct UpstreamOptions {
@@ -166,8 +161,8 @@ impl Default for UpstreamOptions {
 pub enum SelectionKind {
     RoundRobin,
     Random,
-    Fnv,
-    Ketama,
+    FvnHash,
+    KetamaHashing,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -193,8 +188,8 @@ impl Default for Config {
             file_servers: vec![],
             daemonize: false,
             pid_file: None,
+            upgrade_socket: Some(PathBuf::from("/tmp/river-upgrade.sock")),
             upgrade: false,
-            upgrade_socket: None,
         }
     }
 }

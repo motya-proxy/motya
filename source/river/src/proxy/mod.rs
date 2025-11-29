@@ -4,44 +4,34 @@
 //! this includes creation of HTTP proxy services, as well as Path Control
 //! modifiers.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures_util::FutureExt;
 
-use pingora::{Error, ErrorType, listeners, server::Server};
+use pingora::server::Server;
 use pingora_core::{upstreams::peer::HttpPeer, Result};
 use pingora_http::{RequestHeader, ResponseHeader};
-use pingora_load_balancing::{
-    discovery,
-    selection::{
-        consistent::KetamaHashing, BackendIter, BackendSelection, FVNHash, Random, RoundRobin,
-    },
-    Backend, Backends, LoadBalancer,
-};
 use pingora_proxy::{ProxyHttp, Session};
 
 use crate::{
-    config::{common_types::{connectors::{Connectors, Upstream, UpstreamWithContext}, listeners::Listeners, path_control::{self, PathControl}, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}},
+    config::{common_types::{connectors::{Upstream, UpstreamConfig}, listeners::Listeners, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}},
     populate_listners,
     proxy::{
-        request_modifiers::RequestModifyMod, request_selector::RequestSelector,
-        response_modifiers::ResponseModifyMod, wasm_modules::module::WasmModuleFilter,
+        filters::{chain_resolver::ChainResolver, types::{RequestFilterMod, RequestModifyMod, ResponseModifyMod}}, plugins::module::WasmModuleFilter, request_selector::{ContextInfo, RequestSelector, SessionInfo, null_selector}, upstream_factory::UpstreamFactory, upstream_router::{RouteType, UpstreamContext, UpstreamRouter}
     },
 };
 
 use self::{
     rate_limiting::{multi::MultiRaterInstance, single::SingleInstance, Outcome},
-    request_filters::RequestFilterMod,
 };
 
 pub mod rate_limiting;
-pub mod request_filters;
-pub mod request_modifiers;
 pub mod request_selector;
-pub mod response_modifiers;
-pub mod wasm_modules;
-pub mod simple_response;
+pub mod upstream_router;
+pub mod filters;
+pub mod plugins;
+pub mod upstream_factory;
+
 pub struct RateLimiters {
     request_filter_stage_multi: Vec<MultiRaterInstance>,
     request_filter_stage_single: Vec<SingleInstance>,
@@ -54,82 +44,51 @@ pub struct RateLimiters {
 /// of the [request/response lifecycle].
 ///
 /// [request/response lifecycle]: https://github.com/cloudflare/pingora/blob/7ce6f4ac1c440756a63b0766f72dbeca25c6fc94/docs/user_guide/phase_chart.md
-pub struct RiverProxyService<BS: BackendSelection> {
+pub struct RiverProxyService {
     /// All modifiers used when implementing the [ProxyHttp] trait.
-    pub modifiers: Modifiers,
-    /// Load Balancer
-    pub load_balancer: LoadBalancer<BS>,
-    pub request_selector: RequestSelector,
     pub rate_limiters: RateLimiters,
+    pub router: Arc<UpstreamRouter<UpstreamContext>>
 }
 
 /// Create a proxy service, with the type parameters chosen based on the config file
 pub fn river_proxy_service(
     conf: ProxyConfig,
+    chain_resolver: &ChainResolver,
     server: &Server,
-) -> Vec<Box<dyn pingora::services::Service>> {
-    // Pick the correctly monomorphized function. This makes the functions all have the
-    // same signature of `fn(...) -> Box<dyn Service>`.
-    type ServiceMaker = fn(UpstreamWithContext, &PathControl, &RateLimitingConfig, &Listeners, &Server) -> Box<dyn pingora::services::Service>;
-
-    let mut servers = vec![];
-
-    for upstream_with_ctx in conf.connectors.upstreams {
+) -> miette::Result<Box<dyn pingora::services::Service>> {
     
-        let service_maker: ServiceMaker = match upstream_with_ctx.lb_options.selection {
-            SelectionKind::RoundRobin => RiverProxyService::<RoundRobin>::from_basic_conf,
-            SelectionKind::Random => RiverProxyService::<Random>::from_basic_conf,
-            SelectionKind::Fnv => RiverProxyService::<FVNHash>::from_basic_conf,
-            SelectionKind::Ketama => RiverProxyService::<KetamaHashing>::from_basic_conf,
-        };
+    let factory = UpstreamFactory::new(chain_resolver);
 
-        servers.push(service_maker(upstream_with_ctx, &conf.path_control, &conf.rate_limiting, &conf.listeners, server));
-    }
-
-    servers
+    RiverProxyService::from_basic_conf(
+        conf.connectors.upstreams,  
+        &conf.rate_limiting,
+        &conf.listeners,
+        factory,
+    server)
 }
 
-impl<BS> RiverProxyService<BS>
-where
-    BS: BackendSelection + Send + Sync + 'static,
-    BS::Iter: BackendIter,
+
+
+
+impl RiverProxyService
 {
     /// Create a new [RiverProxyService] from the given [ProxyConfig]
     pub fn from_basic_conf(
-        upstream_with_ctx: UpstreamWithContext,
-        path_control: &PathControl,
+        upstream_configs: Vec<UpstreamConfig>,
         rate_limiting: &RateLimitingConfig,
         listeners: &Listeners,
+        upstream_factory: UpstreamFactory,
         server: &Server,
-    ) -> Box<dyn pingora::services::Service> {
+    ) -> miette::Result<Box<dyn pingora::services::Service>> {
 
-        let mut modifiers = Modifiers::from_conf(&path_control).unwrap();
-
-        // TODO: This maybe could be done cleaner? This is a sort-of inlined
-        // version of `LoadBalancer::try_from_iter` with the ability to add
-        // metadata extensions
-        let mut backends = BTreeSet::new();
-        let mut static_roots: Vec<Box<dyn RequestFilterMod>> = vec![];
-
-        match upstream_with_ctx.upstream {
-            Upstream::Static(response) => static_roots.push(Box::new(response)),
-            Upstream::Service(s) => {
-                let mut backend =  Backend::new(&s.peer._address.to_string()).unwrap();
-                assert!(backend.ext.insert(s.peer).is_none());
-                backends.insert(backend);
-            }
-        }
+        let upstream_ctx = upstream_configs
+            .into_iter()
+            .map(|cfg| upstream_factory.create_context(cfg))
+            .collect::<Result<Vec<_>, _>>()?; 
         
-        modifiers.request_filters.extend(static_roots);
-
-        let disco = discovery::Static::new(backends);
-        let upstreams = LoadBalancer::<BS>::from_backends(Backends::new(disco));
-        upstreams
-            .update()
-            .now_or_never()
-            .expect("static should not block")
-            .expect("static should not error");
-        // end of TODO
+        let router = UpstreamRouter::build(upstream_ctx)
+            .expect("Paths must be valid after parsing the configuration");
+            
 
         let mut request_filter_stage_multi = vec![];
         let mut request_filter_stage_single = vec![];
@@ -147,23 +106,22 @@ where
             }
         }
 
+        
         let mut my_proxy = pingora_proxy::http_proxy_service_with_name(
             &server.configuration,
             Self {
-                modifiers,
-                load_balancer: upstreams,
-                request_selector: upstream_with_ctx.lb_options.selector,
                 rate_limiters: RateLimiters {
                     request_filter_stage_multi,
                     request_filter_stage_single,
                 },
+                router: Arc::new(router)
             },
             "ADADWDWDWDW",
         );
 
         populate_listners(listeners, &mut my_proxy);
 
-        Box::new(my_proxy)
+        Ok(Box::new(my_proxy))
     }
 }
 
@@ -195,98 +153,21 @@ where
 // At the moment, "Request Forwarded" corresponds with "upstream_request_filters".
 //
 
-/// All modifiers used when implementing the [ProxyHttp] trait.
-pub struct Modifiers {
-    /// Filters used during the handling of [ProxyHttp::request_filter]
-    pub request_filters: Vec<Box<dyn RequestFilterMod>>,
-    /// Filters used during the handling of [ProxyHttp::upstream_request_filter]
-    pub upstream_request_filters: Vec<Box<dyn RequestModifyMod>>,
-    /// Filters used during the handling of [ProxyHttp::upstream_response_filter]
-    pub upstream_response_filters: Vec<Box<dyn ResponseModifyMod>>,
-}
 
-impl Modifiers {
-    /// Build all modifiers from the provided [PathControl]
-    pub fn from_conf(conf: &PathControl) -> Result<Self> {
-        let mut conf = conf.clone();
-
-        let mut request_filter_mods: Vec<Box<dyn RequestFilterMod>> = vec![];
-        for mut filter in conf.request_filters.drain(..) {
-            let kind = filter.remove("kind").unwrap();
-            let f: Box<dyn RequestFilterMod> = match kind.as_str() {
-                "block-cidr-range" => {
-                    Box::new(request_filters::CidrRangeFilter::from_settings(filter).unwrap())
-                }
-                "module" => {
-                    Box::new(WasmModuleFilter::from_settings(filter).unwrap())
-                }
-                other => {
-                    tracing::warn!("Unknown request filter: '{other}'");
-                    return Err(Error::new(ErrorType::Custom("Bad configuration")));
-                }
-            };
-            request_filter_mods.push(f);
-        }
-
-        let mut upstream_request_filters: Vec<Box<dyn RequestModifyMod>> = vec![];
-        for mut filter in conf.upstream_request_filters.drain(..) {
-            let kind = filter.remove("kind").unwrap();
-            let f: Box<dyn RequestModifyMod> = match kind.as_str() {
-                "remove-header-key-regex" => Box::new(
-                    request_modifiers::RemoveHeaderKeyRegex::from_settings(filter).unwrap(),
-                ),
-                "upsert-header" => {
-                    Box::new(request_modifiers::UpsertHeader::from_settings(filter).unwrap())
-                }
-                other => {
-                    tracing::warn!("Unknown upstream request filter: '{other}'");
-                    return Err(Error::new(ErrorType::Custom("Bad configuration")));
-                }
-            };
-            upstream_request_filters.push(f);
-        }
-        let mut upstream_response_filters: Vec<Box<dyn ResponseModifyMod>> = vec![];
-        for mut filter in conf.upstream_response_filters.drain(..) {
-            let kind = filter.remove("kind").unwrap();
-            let f: Box<dyn ResponseModifyMod> = match kind.as_str() {
-                "remove-header-key-regex" => Box::new(
-                    response_modifiers::RemoveHeaderKeyRegex::from_settings(filter).unwrap(),
-                ),
-                "upsert-header" => {
-                    Box::new(response_modifiers::UpsertHeader::from_settings(filter).unwrap())
-                }
-                other => {
-                    tracing::warn!("Unknown upstream response filter: '{other}'");
-                    return Err(Error::new(ErrorType::Custom("Bad configuration")));
-                }
-            };
-            upstream_response_filters.push(f);
-        }
-        
-        Ok(Self {
-            request_filters: request_filter_mods,
-            upstream_request_filters,
-            upstream_response_filters,
-        })
-    }
-}
-
-/// Per-peer context. Not currently used
 pub struct RiverContext {
     selector_buf: Vec<u8>,
+    router: Arc<UpstreamRouter<UpstreamContext>>
 }
 
 #[async_trait]
-impl<BS> ProxyHttp for RiverProxyService<BS>
-where
-    BS: BackendSelection + Send + Sync + 'static,
-    BS::Iter: BackendIter,
+impl ProxyHttp for RiverProxyService
 {
     type CTX = RiverContext;
 
     fn new_ctx(&self) -> Self::CTX {
         RiverContext {
             selector_buf: Vec::new(),
+            router: self.router.clone()
         }
     }
 
@@ -295,77 +176,79 @@ where
     where
         Self::CTX: Send + Sync,
     {
-        let multis = self
-            .rate_limiters
-            .request_filter_stage_multi
-            .iter()
-            .filter_map(|l| l.get_ticket(session));
+        let router = ctx.router.clone();
+        let path = session.req_header().uri.path();
 
-        let singles = self
-            .rate_limiters
-            .request_filter_stage_single
-            .iter()
-            .filter_map(|l| l.get_ticket(session));
+        if let Some(upstream_ctx) = router.get_upstream_by_path(RouteType::Strict(path)) {
+            
+            let multis = self
+                .rate_limiters
+                .request_filter_stage_multi
+                .iter()
+                .filter_map(|l| l.get_ticket(session));
 
-        // Attempt to get all tokens
-        //
-        // TODO: If https://github.com/udoprog/leaky-bucket/issues/17 is resolved we could
-        // remember the buckets that we did get approved for, and "return" the unused tokens.
-        //
-        // For now, if some tickets succeed but subsequent tickets fail, the preceeding
-        // approved tokens are just "burned".
-        //
-        // TODO: If https://github.com/udoprog/leaky-bucket/issues/34 is resolved we could
-        // support a "max debt" number, allowing us to delay if acquisition of the token
-        // would happen soon-ish, instead of immediately 429-ing if the token we need is
-        // about to become available.
-        if singles
-            .chain(multis)
-            .any(|t| t.now_or_never() == Outcome::Declined)
-        {
-            tracing::trace!("Rejecting due to rate limiting failure");
-            session.downstream_session.respond_error(429).await?;
-            return Ok(true);
-        }
+            let singles = self
+                .rate_limiters
+                .request_filter_stage_single
+                .iter()
+                .filter_map(|l| l.get_ticket(session));
 
-        for filter in &self.modifiers.request_filters {
-            match filter.request_filter(session, ctx).await {
-                // If Ok true: we're done handling this request
-                o @ Ok(true) => return o,
-                // If Err: we return that
-                e @ Err(_) => return e,
-                // If Ok(false), we move on to the next filter
-                Ok(false) => {}
+            // Attempt to get all tokens
+            //
+            // TODO: If https://github.com/udoprog/leaky-bucket/issues/17 is resolved we could
+            // remember the buckets that we did get approved for, and "return" the unused tokens.
+            //
+            // For now, if some tickets succeed but subsequent tickets fail, the preceeding
+            // approved tokens are just "burned".
+            //
+            // TODO: If https://github.com/udoprog/leaky-bucket/issues/34 is resolved we could
+            // support a "max debt" number, allowing us to delay if acquisition of the token
+            // would happen soon-ish, instead of immediately 429-ing if the token we need is
+            // about to become available.
+            if singles
+                .chain(multis)
+                .any(|t| t.now_or_never() == Outcome::Declined)
+            {
+                tracing::trace!("Rejecting due to rate limiting failure");
+                session.downstream_session.respond_error(429).await?;
+                return Ok(true);
+            }
+
+            for chain in &upstream_ctx.chains {
+                for filter in &chain.actions {
+                    match filter.request_filter(session, ctx).await {
+                        // If Ok true: we're done handling this request
+                        o @ Ok(true) => return o,
+                        // If Err: we return that
+                        e @ Err(_) => return e,
+                        // If Ok(false), we move on to the next filter
+                        Ok(false) => {}
+                    }
+                }
+            }
+            
+            if let Upstream::Static(response) = &upstream_ctx.upstream {
+                let _ = response.request_filter(session, ctx).await?;
+                return Ok(true);
             }
         }
+
         Ok(false)
     }
 
     /// Handle the "upstream peer" phase, where we pick which upstream to proxy to.
-    ///
-    /// At the moment, we don't support more than one upstream peer, so this choice
-    /// is fairly easy!
     async fn upstream_peer(
         &self,
         session: &mut Session,
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
-        let key = (self.request_selector)(ctx, session);
-
-        let backend = self.load_balancer.select(key, 256);
-
-        // Manually clear the selector buf to avoid accidental leaks
-        ctx.selector_buf.clear();
-
-        let backend =
-            backend.ok_or_else(|| pingora::Error::new_str("Unable to determine backend"))?;
-
-        // Retrieve the HttpPeer from the associated backend metadata
-        backend
-            .ext
-            .get::<HttpPeer>()
-            .map(|p| Box::new(p.clone()))
-            .ok_or_else(|| pingora::Error::new_str("Fatal: Missing selected backend metadata"))
+    
+        let peer = ctx.router.pick_peer(
+            &mut ContextInfo { selector_buf: &mut ctx.selector_buf }, 
+            &mut SessionInfo { client_addr: session.client_addr(), uri: &session.req_header().uri }
+        )?;
+        
+        Ok(Box::new(peer))
     }
 
     /// Handle the "upstream request filter" phase, where we can choose to make
@@ -381,9 +264,19 @@ where
         header: &mut RequestHeader,
         ctx: &mut Self::CTX,
     ) -> Result<()> {
-        for filter in &self.modifiers.upstream_request_filters {
-            filter.upstream_request_filter(session, header, ctx).await?;
+
+        let router = ctx.router.clone();
+        let path = session.req_header().uri.path();
+
+        if let Some(upstream_ctx) = router.get_upstream_by_path(RouteType::Strict(path)) {
+            
+            for chain in &upstream_ctx.chains {
+                for filter in &chain.req_mods {
+                    filter.upstream_request_filter(session, header, ctx).await?;
+                }
+            }
         }
+        
         Ok(())
     }
 
@@ -398,34 +291,18 @@ where
         upstream_response: &mut ResponseHeader,
         ctx: &mut Self::CTX,
     ) -> Result<()> {
-        for filter in &self.modifiers.upstream_response_filters {
-            filter.upstream_response_filter(session, upstream_response, ctx);
+        let router = ctx.router.clone();
+        let path = session.req_header().uri.path();
+
+        if let Some(upstream_ctx) = router.get_upstream_by_path(RouteType::Strict(path)) {
+            
+            for chain in &upstream_ctx.chains {
+                for filter in &chain.res_mods {
+                    filter.upstream_response_filter(session, upstream_response, ctx);
+                }
+            }
         }
         Ok(())
     }
 }
 
-/// Helper function that extracts the value of a given key.
-///
-/// Returns an error if the key does not exist
-fn extract_val(key: &str, map: &mut BTreeMap<String, String>) -> Result<String> {
-    map.remove(key).ok_or_else(|| {
-        // TODO: better "Error" creation
-        tracing::error!("Missing key: '{key}'");
-        Error::new_str("Missing configuration field!")
-    })
-}
-
-/// Helper function to make sure the map is empty
-///
-/// This is used to reject unknown configuration keys
-fn ensure_empty(map: &BTreeMap<String, String>) -> Result<()> {
-    if !map.is_empty() {
-        let keys = map.keys().map(String::as_str).collect::<Vec<&str>>();
-        let all_keys = keys.join(", ");
-        tracing::error!("Extra keys found: '{all_keys}'");
-        Err(Error::new_str("Extra settings found!"))
-    } else {
-        Ok(())
-    }
-}

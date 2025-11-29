@@ -6,6 +6,7 @@ use miette::{Diagnostic, SourceSpan};
 #[derive(thiserror::Error, Debug, Diagnostic)]
 #[error("Incorrect configuration contents")]
 pub struct Bad {
+    
     #[help]
     error: String,
 

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    str::FromStr,
+    str::FromStr, sync::atomic::{AtomicUsize, Ordering},
 };
 
 use http::{StatusCode, Uri};
@@ -12,33 +12,34 @@ use pingora::{prelude::HttpPeer, protocols::ALPN};
 use crate::{
     config::{
         common_types::{
-            bad::{Bad, OptExtParse},
-            connectors::{
-                Connectors, ConnectorsLeaf, ConnectorsSectionParser, HttpPeerOptions, Upstream,
-                UpstreamWithContext,
-            },
-            rules::{Modificator, RulesTable},
+            SectionParser, bad::{Bad, OptExtParse}, connectors::{
+                Connectors, ConnectorsLeaf, HttpPeerOptions, Upstream,
+                UpstreamConfig,
+            }, definitions::{DefinitionsTable, FilterChain, Modificator, NamedFilterChain}
         },
         internal::{DiscoveryKind, HealthCheckKind, SelectionKind, SimpleResponse, UpstreamOptions},
-        kdl::utils::{self, HashMapValidationExt},
+        kdl::{chain_parser::ChainParser, utils::{self, HashMapValidationExt}},
     },
     proxy::request_selector::{
-        null_selector, source_addr_and_uri_path_selector, uri_path_selector, RequestSelector,
+        RequestSelector, null_selector, source_addr_and_uri_path_selector, uri_path_selector
     },
 };
 
 
 
 pub struct ConnectorsSection<'a> {
-    table: &'a RulesTable,
-    doc: &'a KdlDocument
+    table: &'a DefinitionsTable,
+    doc: &'a KdlDocument,
+    anon_counter: AtomicUsize
 }
 
-impl ConnectorsSectionParser<KdlDocument> for ConnectorsSection<'_> {
+impl SectionParser<KdlDocument, Connectors> for ConnectorsSection<'_> {
 
     fn parse_node(&self, node: &KdlDocument) -> miette::Result<Connectors> {
         
-        let root_nodes = self.parse_connections_node(node)?;
+        let mut anonymous_chains = HashMap::new();
+
+        let root_nodes = self.parse_connections_node(node, &mut anonymous_chains)?;
         
         let upstreams = flatten_nodes(root_nodes, &[], None);
 
@@ -49,23 +50,24 @@ impl ConnectorsSectionParser<KdlDocument> for ConnectorsSection<'_> {
         }
 
         Ok(Connectors { 
-            upstreams 
+            upstreams,
+            anonymous_chains
         })
     }
 }
 
 impl<'a> ConnectorsSection<'a> {
 
-    pub fn new(doc: &'a KdlDocument, table: &'a RulesTable) -> Self { Self { table, doc } }
+    pub fn new(doc: &'a KdlDocument, table: &'a DefinitionsTable) -> Self { Self { table, doc, anon_counter: AtomicUsize::new(0) } }
 
-    pub fn parse_connections_node(&self, node: &KdlDocument) -> miette::Result<Vec<ConnectorsLeaf>> {
+    pub fn parse_connections_node(&self, node: &KdlDocument, anonymous_chains: &mut HashMap<String, FilterChain>) -> miette::Result<Vec<ConnectorsLeaf>> {
         
         let conn_node = utils::required_child_doc(self.doc, node, "connectors")?;
 
-        self.process_nodes_recursive(conn_node, "/".parse().unwrap())
+        self.process_nodes_recursive(conn_node, anonymous_chains, "/".parse().unwrap())
     }
 
-    fn process_nodes_recursive(&self, parent_node: &KdlDocument, base_path: Uri) -> miette::Result<Vec<ConnectorsLeaf>> {
+    fn process_nodes_recursive(&self, parent_node: &KdlDocument, anonymous_chains: &mut HashMap<String, FilterChain>, base_path: Uri) -> miette::Result<Vec<ConnectorsLeaf>> {
         let nodes = utils::data_nodes(self.doc, parent_node)?;
         let mut result = Vec::new();
 
@@ -87,7 +89,7 @@ impl<'a> ConnectorsSection<'a> {
                     exclusive_handler = Some((name, node.span()));
 
                     match name {
-                        "return" => self.extract_static_response(node, args)?,
+                        "return" => self.extract_static_response(node, args, base_path.clone())?,
                         "proxy" => self.extract_connector(node, args, base_path.clone())?,
                         _ => unreachable!(),
                     }
@@ -101,8 +103,8 @@ impl<'a> ConnectorsSection<'a> {
                     self.extract_load_balance(node)?
                 },
 
-                "section" => self.extract_section(node, args, base_path.clone())?,
-                "use-rule" => self.extract_rule(node, args)?,
+                "section" => self.extract_section(node, args, anonymous_chains, base_path.clone())?,
+                "use-chain" => self.extract_chain_usage(node, args, anonymous_chains, base_path.clone())?,
                 
                 unknown => return Err(Bad::docspan(format!("Unknown directive: {unknown}"), self.doc, &node.span()).into())
             };
@@ -113,30 +115,65 @@ impl<'a> ConnectorsSection<'a> {
         Ok(result)
     }
 
-    fn extract_rule(
+    fn extract_chain_usage(
         &self,
-        node: &KdlNode, 
-        args: &[KdlEntry], 
+        node: &KdlNode,
+        args: &[KdlEntry],
+        anonymous_chains: &mut HashMap<String, FilterChain>,
+        path: Uri
     ) -> miette::Result<ConnectorsLeaf> {
-
-        let arg = args.first()
-            .ok_or_else(|| Bad::docspan("Section node requires a known rule name", self.doc, &node.span()))?;
-
-        let rule_name = arg
-            .value()
-            .as_string()
-            .ok_or_else(|| Bad::docspan("Section must be a string", self.doc, &arg.span()))?;
-
-        let rule = self.table.get_rule_by_name(rule_name)
-            .ok_or_else(|| Bad::docspan("Rule not exist", self.doc, &arg.span()))?;
         
-        Ok(ConnectorsLeaf::Modificator(Modificator::Rule(rule)))
+        //named use-chain
+        if let Some(arg) = args.first() {
+            let name = arg.value().as_string().ok_or_else(|| {
+                Bad::docspan("Chain reference must be a string", self.doc, &arg.span())
+            })?;
+
+            if node.children().is_some() {
+                return Err(Bad::docspan(
+                    "use-chain cannot have both a name argument and a code block. Choose one.",
+                    self.doc,
+                    &node.span()
+                ).into());
+            }
+
+            let chain = self.table.get_chain_by_name(name).ok_or_else(|| {
+                Bad::docspan(
+                    format!("Chain '{}' not found in definitions", name), 
+                    self.doc, 
+                    &arg.span()
+                )
+            })?;
+
+            return Ok(ConnectorsLeaf::Modificator(Modificator::Chain(NamedFilterChain { chain, name: name.to_string() })));
+        }
+
+        //anonymous use-chain
+        if let Some(children) = node.children() {
+            
+            let chain = ChainParser::parse(self.doc, children)?;
+            
+            let id = self.anon_counter.fetch_add(1, Ordering::Relaxed);
+            let path_slug = path.path().replace('/', "_");
+            let generated_name = format!("__anon_{id}_{path_slug}");
+
+            anonymous_chains.insert(generated_name.clone(), chain.clone());
+
+            return Ok(ConnectorsLeaf::Modificator(Modificator::Chain(NamedFilterChain { chain, name: generated_name })));
+        }
+
+        Err(Bad::docspan(
+            "use-chain requires either a name argument or a block of filters",
+            self.doc,
+            &node.span(),
+        ).into())
     }
 
     fn extract_section(
         &self,
         node: &KdlNode, 
         args: &[KdlEntry], 
+        anonymous_chains: &mut HashMap<String, FilterChain>,
         base_path: Uri
     ) -> miette::Result<ConnectorsLeaf> {
         
@@ -160,16 +197,20 @@ impl<'a> ConnectorsSection<'a> {
         let path = full_path.parse()
             .map_err(|err| Bad::docspan(format!("Bad path: {full_path}, error: {err}"), self.doc, &arg.span()))?;
 
-        Ok(ConnectorsLeaf::Section(self.process_nodes_recursive(children_doc, path)?))
+        Ok(ConnectorsLeaf::Section(self.process_nodes_recursive(children_doc, anonymous_chains, path)?))
     }
 
     fn extract_static_response(
         &self,
         node: &KdlNode,
         args: &[KdlEntry],
+        base_path: Uri
     ) -> miette::Result<ConnectorsLeaf> {
 
-        let args = utils::str_str_args(self.doc, args)?
+        let args = utils::str_str_args(self.doc, args)
+            .map_err(|err| 
+                Bad::docspan(format!("The return directive must have code and response keys, error: '{err}'"), self.doc, &node.span())
+            )?
             .into_iter()
             .collect::<HashMap<&str, &str>>()
             .ensure_only_keys(&["code", "response"], self.doc, node)?;
@@ -181,7 +222,7 @@ impl<'a> ConnectorsSection<'a> {
             .map_err(|err| Bad::docspan(format!("Not a valid http code, reason: '{err}'"), self.doc, &node.span()))?;
 
         Ok(ConnectorsLeaf::Upstream(
-            Upstream::Static(SimpleResponse { http_code, response_body: response.to_string() })
+            Upstream::Static(SimpleResponse { http_code, response_body: response.to_string(), prefix_path: base_path })
         ))
     }
 
@@ -289,8 +330,8 @@ impl<'a> ConnectorsSection<'a> {
                         |val| match val {
                             "RoundRobin" => Some(SelectionKind::RoundRobin),
                             "Random" => Some(SelectionKind::Random),
-                            "FNV" => Some(SelectionKind::Fnv),
-                            "Ketama" => Some(SelectionKind::Ketama),
+                            "FNV" => Some(SelectionKind::FvnHash),
+                            "Ketama" => Some(SelectionKind::KetamaHashing),
                             _ => None,
                         },
                     )?;
@@ -298,7 +339,7 @@ impl<'a> ConnectorsSection<'a> {
                         SelectionKind::RoundRobin | SelectionKind::Random => {
                             // No key required, selection is random
                         }
-                        SelectionKind::Fnv | SelectionKind::Ketama => {
+                        SelectionKind::FvnHash | SelectionKind::KetamaHashing => {
                             let sel_ty = args.get("key").or_bail(
                                 format!("selection {sel:?} requires a 'key' argument"),
                                 self.doc,
@@ -369,7 +410,7 @@ fn flatten_nodes(
     nodes: Vec<ConnectorsLeaf>,
     parent_rules: &[Modificator],            // Rules inherited from parents
     parent_lb: Option<&UpstreamOptions> // LB options inherited from parents
-) -> Vec<UpstreamWithContext> {
+) -> Vec<UpstreamConfig> {
     let mut results = Vec::new();
 
     // 1. Build context for the current level
@@ -398,7 +439,7 @@ fn flatten_nodes(
         match node {
             ConnectorsLeaf::Upstream(up) => {
                 // Leaf node: create the final object combining upstream and context
-                results.push(UpstreamWithContext {
+                results.push(UpstreamConfig {
                     upstream: up,
                     rules: current_rules.clone(),
                     lb_options: current_lb.clone().unwrap_or_default(),
@@ -436,35 +477,199 @@ fn parse_proto_value(value: &str) -> Result<Option<ALPN>, String> {
 #[cfg(test)]
 mod tests {
     
+    use crate::config::kdl::definitions::DefinitionsSection;
+
     use super::*;
 
-    const CONNECTORS_USE_CHAIN: &str = r#"
-        connectors {
-            section "/first" {
-                section "/second" {
-                    use-rule "SUPER-SECURITY-RULES"
-                    proxy "http://0.0.0.0:8001/something"
-                }
+    fn parse_config(input: &str) -> miette::Result<Connectors> {
+        let doc: KdlDocument = input.parse().unwrap();
+        
+        let def_parser = DefinitionsSection::new(&doc);
+        let table = def_parser.parse_node(&doc)?;
+
+        let conn_parser = ConnectorsSection::new(&doc, &table);
+        conn_parser.parse_node(&doc)
+    }
+
+    const ANONYMOUS_CHAIN_TEST: &str = r#"
+    connectors {
+        section "/anon" {
+            use-chain {
+                filter name="logger" level="debug"
             }
+            proxy "http://127.0.0.1:8080"
         }
+    }
     "#;
 
     #[test]
-    fn connectors_with_chain() {
-        let doc: KdlDocument = CONNECTORS_USE_CHAIN.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
+    fn test_anonymous_chain() {
+        let connectors = parse_config(ANONYMOUS_CHAIN_TEST).expect("Parsing failed");
+        let upstream = &connectors.upstreams[0];
 
-        let nodes = section.parse_connections_node(&doc).unwrap();
         
-        let ConnectorsLeaf::Section(second_section) = &nodes[1] else { unreachable!() };
-        let ConnectorsLeaf::Section(third_section) = &second_section[1] else { unreachable!() };
+        assert_eq!(upstream.rules.len(), 1);
+        assert_eq!(connectors.anonymous_chains.len(), 1);
+
+        //check if is exist in anonymous_chains
         
-        let ConnectorsLeaf::Upstream(Upstream::Service(third)) = third_section.first().unwrap() else { unreachable!() };
-        assert_eq!(third.prefix_path, "/first/second");
-        assert_eq!(third.target_path, "/something");
+        connectors.anonymous_chains.get("__anon_0__anon").unwrap();
+
+        match &upstream.rules[0] {
+            Modificator::Chain(named_chain) => {
+                assert_eq!(named_chain.chain.filters.len(), 1);
+                assert_eq!(named_chain.chain.filters[0].name, "logger");
+                assert_eq!(named_chain.chain.filters[0].args.get("level").map(|s| s.as_str()), Some("debug"));
+            }
+        }
     }
 
 
+    const SIMPLE_CHAIN: &str = r#"
+    definitions {
+        modifiers {
+            chain-filters "security" {
+                filter name="block-ip"
+                filter name="auth-check"
+            }
+        }
+    }
+
+    connectors {
+        use-chain "security"
+        proxy "http://127.0.0.1:8080"
+    }
+    "#;
+
+    #[test]
+    fn test_use_chain_simple() {
+        let connectors = parse_config(SIMPLE_CHAIN).expect("Parsing failed");
+        let upstream = &connectors.upstreams[0];
+
+        assert_eq!(upstream.rules.len(), 1, "Should have 1 rule (the chain)");
+        
+        match &upstream.rules[0] {
+            Modificator::Chain(named_chain) => {
+                assert_eq!(named_chain.chain.filters.len(), 2);
+                assert_eq!(named_chain.chain.filters[0].name, "block-ip");
+                assert_eq!(named_chain.chain.filters[1].name, "auth-check");
+            }
+        }
+    }
+
+    const NESTED_INHERITANCE: &str = r#"
+    definitions {
+        modifiers {
+            chain-filters "global-log" {
+                filter name="logger"
+            }
+            chain-filters "api-protection" {
+                filter name="rate-limit"
+            }
+        }
+    }
+
+    connectors {
+        use-chain "global-log"
+
+        section "/api" {
+            use-chain "api-protection"
+            proxy "http://127.0.0.1:8081"
+        }
+
+        section "/public" {
+            proxy "http://127.0.0.1:8082"
+        }
+    }
+    "#;
+
+    #[test]
+    fn test_use_chain_inheritance() {
+        let connectors = parse_config(NESTED_INHERITANCE).expect("Parsing failed");
+        
+        let api_upstream = connectors.upstreams.iter()
+            .find(|u| 
+                match &u.upstream { 
+                    Upstream::Service(s) => &s.prefix_path,
+                    Upstream::Static(r) => &r.prefix_path
+                } == "/api")
+            .expect("API upstream not found");
+
+        assert_eq!(api_upstream.rules.len(), 2);
+        
+        let Modificator::Chain(r1) = &api_upstream.rules[0];
+
+        assert_eq!(r1.chain.filters[0].name, "logger");
+        
+
+        let Modificator::Chain(r2) = &api_upstream.rules[1];
+        assert_eq!(r2.chain.filters[0].name, "rate-limit");
+        
+        let public_upstream = connectors.upstreams.iter()
+            .find(|u| match &u.upstream { 
+                    Upstream::Service(s) => &s.prefix_path,
+                    Upstream::Static(r) => &r.prefix_path
+                } == "/public")
+            .expect("Public upstream not found");
+
+        assert_eq!(public_upstream.rules.len(), 1);
+
+        let Modificator::Chain(r1) = &public_upstream.rules[0];
+        assert_eq!(r1.chain.filters[0].name, "logger");
+    }
+
+    const MULTIPLE_CHAINS_IN_SCOPE: &str = r#"
+    definitions {
+        modifiers {
+            chain-filters "a" { filter name="A" }
+            chain-filters "b" { filter name="B" }
+        }
+    }
+
+    connectors {
+        section "/combo" {
+            use-chain "a"
+            use-chain "b"
+            proxy "http://127.0.0.1:9000"
+        }
+    }
+    "#;
+
+    #[test]
+    fn test_multiple_chains_same_level() {
+        let connectors = parse_config(MULTIPLE_CHAINS_IN_SCOPE).expect("Parsing failed");
+        let upstream = &connectors.upstreams[0];
+
+        assert_eq!(upstream.rules.len(), 2);
+        
+        let Modificator::Chain(r) = &upstream.rules[0];
+        assert_eq!(r.chain.filters[0].name, "A");
+        let Modificator::Chain(r) = &upstream.rules[1];
+        assert_eq!(r.chain.filters[0].name, "B");
+    }
+
+    const MISSING_CHAIN: &str = r#"
+    definitions {
+        modifiers {
+            chain-filters "exists" { filter name="ok" }
+        }
+    }
+
+    connectors {
+        use-chain "GHOST"
+        proxy "http://127.0.0.1:8080"
+    }
+    "#;
+
+    #[test]
+    fn test_missing_chain_error() {
+        let result = parse_config(MISSING_CHAIN);
+        
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().help().unwrap().to_string();
+        assert!(err_msg.contains("Filter-chain 'GHOST' not exist"));
+    }
+    
     const CONNECTORS_NESTED_SECTIONS: &str = r#"
         connectors {
             proxy "http://0.0.0.0:8000"
@@ -480,9 +685,10 @@ mod tests {
     #[test]
     fn connectors_with_nested_sections() {
         let doc: KdlDocument = CONNECTORS_NESTED_SECTIONS.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
-
-        let nodes = section.parse_connections_node(&doc).unwrap();
+        let table = DefinitionsTable::default();
+        let section = ConnectorsSection::new(&doc, &table);
+        let mut anon = HashMap::new();
+        let nodes = section.parse_connections_node(&doc, &mut anon).unwrap();
         let ConnectorsLeaf::Upstream(Upstream::Service(first)) = &nodes[0] else { unreachable!() };
         let ConnectorsLeaf::Section(second_section) = &nodes[1] else { unreachable!() };
         let ConnectorsLeaf::Section(third_section) = &second_section[1] else { unreachable!() };
@@ -510,9 +716,11 @@ mod tests {
     #[test]
     fn service_section_with_path() {
         let doc: KdlDocument = CONNECTORS_SECTION_WITH_PATH.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
+        let table = DefinitionsTable::default();
+        let section = ConnectorsSection::new(&doc, &table);
 
-        let ConnectorsLeaf::Section(simple) = &section.parse_connections_node(&doc).unwrap()[0] else { unreachable!() };
+        let mut anon = HashMap::new();
+        let ConnectorsLeaf::Section(simple) = &section.parse_connections_node(&doc, &mut anon).unwrap()[0] else { unreachable!() };
          
         let ConnectorsLeaf::Upstream(Upstream::Service(s)) = &simple[0] else { unreachable!() };
 
@@ -531,9 +739,11 @@ mod tests {
     #[test]
     fn service_section() {
         let doc: KdlDocument = CONNECTORS_SECTION.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
+        let table = DefinitionsTable::default();
+        let section = ConnectorsSection::new(&doc, &table);
 
-        let ConnectorsLeaf::Section(simple)= &section.parse_connections_node(&doc).unwrap()[0] else { unreachable!() };
+        let mut anon = HashMap::new();
+        let ConnectorsLeaf::Section(simple)= &section.parse_connections_node(&doc, &mut anon).unwrap()[0] else { unreachable!() };
         
         let ConnectorsLeaf::Upstream(Upstream::Service(s)) = &simple[0] else { unreachable!() };
          
@@ -549,9 +759,11 @@ mod tests {
     #[test]
     fn service_proxy() {
         let doc: KdlDocument = CONNECTORS_PROXY.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
+        let table = DefinitionsTable::default();
+        let section = ConnectorsSection::new(&doc, &table);
 
-        let simple = &section.parse_connections_node(&doc).unwrap()[0];
+        let mut anon = HashMap::new();
+        let simple = &section.parse_connections_node(&doc, &mut anon).unwrap()[0];
         
         if let ConnectorsLeaf::Upstream(Upstream::Service(s)) = simple {
             assert_eq!(s.peer._address, pandora_module_utils::pingora::SocketAddr::Inet(std::net::SocketAddr::V4("0.0.0.0:8000".parse().unwrap())))
@@ -570,9 +782,11 @@ mod tests {
     fn service_return_simple_response() {
 
         let doc: KdlDocument = CONNECTORS_RETURN_SIMPLE_RESPONSE.parse().unwrap();
-        let section = ConnectorsSection::new(&doc, &RulesTable);
-
-        let simple = &section.parse_connections_node(&doc).unwrap()[0];
+        let table = DefinitionsTable::default();
+        let section = ConnectorsSection::new(&doc, &table);
+        
+        let mut anon = HashMap::new();
+        let simple = &section.parse_connections_node(&doc, &mut anon).unwrap()[0];
         
         if let ConnectorsLeaf::Upstream(Upstream::Static(response)) = simple {
             assert_eq!(response.http_code, http::StatusCode::OK);

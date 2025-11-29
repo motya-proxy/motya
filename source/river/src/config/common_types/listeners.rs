@@ -26,7 +26,3 @@ pub struct Listeners {
     pub list_cfgs: Vec<ListenerConfig>
 }
 
-pub trait ListenersSectionParser<T> {
-    fn parse_node(&self, node: &T) -> miette::Result<Listeners>;
-}
-

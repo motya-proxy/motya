@@ -4,8 +4,7 @@ use kdl::KdlDocument;
 
 use crate::config::{
     common_types::{
-        bad::Bad,
-        path_control::{PathControl, PathControlSectionParser},
+        SectionParser, bad::Bad, path_control::PathControl
     },
     kdl::utils,
 };
@@ -15,7 +14,7 @@ pub struct PathControlSection<'a> {
     doc: &'a KdlDocument,
 }
 
-impl PathControlSectionParser<KdlDocument> for PathControlSection<'_> {
+impl SectionParser<KdlDocument, PathControl> for PathControlSection<'_> {
     fn parse_node(&self, parent_node: &KdlDocument) -> miette::Result<PathControl> {
         let mut pc = PathControl::default();
 

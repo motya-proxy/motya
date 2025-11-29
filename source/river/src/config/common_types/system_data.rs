@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct SystemData {
     pub threads_per_service: usize,
     pub daemonize: bool,
@@ -18,6 +19,3 @@ impl Default for SystemData {
     }
 }
 
-pub trait SystemDataSectionParser<T> {
-    fn parse_node(&self, node: &T) -> miette::Result<SystemData>;
-}

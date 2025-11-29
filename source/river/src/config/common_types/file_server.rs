@@ -11,7 +11,3 @@ pub struct FileServerConfig {
     pub(crate) listeners: Listeners,
     pub(crate) base_path: Option<PathBuf>,
 }
-
-pub trait FileServerSectionParser<T> {
-    fn parse_node(&self, node: &T) -> miette::Result<FileServerConfig>;
-}

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use kdl::KdlDocument;
 
-use crate::config::{common_types::{file_server::{FileServerConfig, FileServerSectionParser}, listeners::ListenersSectionParser}, kdl::{listeners::ListenersSection, utils}};
+use crate::config::{common_types::{SectionParser, file_server::FileServerConfig}, kdl::{listeners::ListenersSection, utils}};
 
 pub struct FileServerSection<'a> {
     doc: &'a KdlDocument,
     name: &'a str
 }
 
-impl FileServerSectionParser<KdlDocument> for FileServerSection<'_> {
+impl SectionParser<KdlDocument, FileServerConfig> for FileServerSection<'_> {
     fn parse_node(&self, node: &KdlDocument) -> miette::Result<FileServerConfig> {
         self.extract_file_server(node)    
     }

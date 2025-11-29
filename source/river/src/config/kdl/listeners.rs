@@ -8,10 +8,9 @@ use kdl::{KdlDocument, KdlEntry, KdlNode};
 
 use crate::config::{
     common_types::{
-        bad::Bad,
-        listeners::{
-            ListenerConfig, ListenerKind, Listeners, ListenersSectionParser, TlsConfig,
-        },
+        SectionParser, bad::Bad, listeners::{
+            ListenerConfig, ListenerKind, Listeners, TlsConfig,
+        }
     },
     kdl::utils::{self, HashMapValidationExt},
 };
@@ -20,7 +19,7 @@ pub struct ListenersSection<'a> {
     doc: &'a KdlDocument
 }
 
-impl ListenersSectionParser<KdlDocument> for ListenersSection<'_> {
+impl SectionParser<KdlDocument, Listeners> for ListenersSection<'_> {
 
     fn parse_node(&self, node: &KdlDocument) -> miette::Result<Listeners> {
         
@@ -104,15 +103,13 @@ impl<'a> ListenersSection<'a> {
                     },
                 }),
             }
+        } else if let Ok(pb) = name.parse::<PathBuf>() {
+            // TODO: Should we check that this path exists? Otherwise it seems to always match
+            Ok(ListenerConfig {
+                source: ListenerKind::Uds(pb),
+            })
         } else {
-            if let Ok(pb) = name.parse::<PathBuf>() {
-                // TODO: Should we check that this path exists? Otherwise it seems to always match
-                Ok(ListenerConfig {
-                    source: ListenerKind::Uds(pb),
-                })
-            } else {
-                Err(Bad::docspan("'{name}' is not a socketaddr or path?", doc, &node.span()).into())
-            }
+            Err(Bad::docspan("'{name}' is not a socketaddr or path?", doc, &node.span()).into())
         }
     }
 }

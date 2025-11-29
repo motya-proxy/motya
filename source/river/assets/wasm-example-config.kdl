@@ -1,38 +1,30 @@
 system {
     threads-per-service 8
-    // Should the server daemonize and run in the background?
-    //
-    // NOTE: If this is "true", then "pid-file" must be set
     daemonize #false 
-
-    // Path to the pidfile used when daemonizing
-    //
-    // NOTE: This must be an absolute path.
-    // See issue https://github.com/memorysafety/river/issues/50
     pid-file "/tmp/river.pidfile"
-
-    // Path to upgrade socket
-    //
-    // NOTE: This must be an absolute path.
-    // See issue https://github.com/memorysafety/river/issues/50
-    // NOTE: The upgrade command is only supported on Linux
     upgrade-socket "/tmp/river-upgrade.sock"
 }
 
+definitions {
+    plugins {
+        plugin {
+            name "example-filter"
+            load url="https://github.com/Tam1SH/river/raw/refs/heads/main/source/river/assets/request_filter.wasm"
+        }
+    }
+}
 
 services {
     Example {
         listeners {
             "0.0.0.0:8080"
-            "0.0.0.0:4443" cert-path="./assets/test.crt" key-path="./assets/test.key" offer-h2=#true
         }
         connectors {
-            return code="200" response="OK"
-        }
-
-        path-control {
-            request-filters {
-                filter kind="module" path="./assets/request_filter.wasm"
+            section "/" {
+                return code="200" response="OK"
+                filter {
+                    
+                }
             }
         }
     }

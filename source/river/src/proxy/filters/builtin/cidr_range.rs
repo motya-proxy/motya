@@ -1,3 +1,4 @@
+
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
@@ -6,15 +7,8 @@ use pingora::ErrorType;
 use pingora_core::{protocols::l4::socket::SocketAddr, Error, Result};
 use pingora_proxy::Session;
 
-use crate::proxy::{extract_val, RiverContext};
+use crate::proxy::{RiverContext, filters::{builtin::helpers::extract_val, types::RequestFilterMod}};
 
-/// This is a single-serving trait for modifiers that provide actions for
-/// [ProxyHttp::request_filter] methods
-#[async_trait]
-pub trait RequestFilterMod: Send + Sync {
-    /// See [ProxyHttp::request_filter] for more details
-    async fn request_filter(&self, session: &mut Session, ctx: &mut RiverContext) -> Result<bool>;
-}
 
 pub struct CidrRangeFilter {
     blocks: Vec<IpCidr>,

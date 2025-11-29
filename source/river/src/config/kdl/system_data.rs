@@ -2,8 +2,7 @@ use std::path::PathBuf;
 use kdl::KdlDocument;
 use crate::config::{
     common_types::{
-        bad::{Bad, OptExtParse},
-        system_data::{SystemData, SystemDataSectionParser},
+        SectionParser, bad::{Bad, OptExtParse}, system_data::SystemData
     },
     kdl::utils,
 };
@@ -12,7 +11,7 @@ pub struct SystemDataSection<'a> {
     doc: &'a KdlDocument,
 }
 
-impl SystemDataSectionParser<KdlDocument> for SystemDataSection<'_> {
+impl SectionParser<KdlDocument, SystemData> for SystemDataSection<'_> {
     fn parse_node(&self, _: &KdlDocument) -> miette::Result<SystemData> {
         self.extract_system_data()    
     }
@@ -26,7 +25,9 @@ impl<'a> SystemDataSection<'a> {
     // system { threads-per-service N }
     fn extract_system_data(&self) -> miette::Result<SystemData> {
         // Get the top level system doc
+        dbg!("extract_system_data");
         let Some(sys) = utils::optional_child_doc(self.doc, self.doc, "system") else {
+        dbg!("not found");
             return Ok(SystemData::default());
         };
         let tps = self.extract_threads_per_service(sys)?;

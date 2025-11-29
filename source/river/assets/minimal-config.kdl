@@ -1,10 +1,26 @@
+system {
+    threads-per-service 8
+    daemonize #false 
+    pid-file "/tmp/river.pidfile"
+    upgrade-socket "/tmp/river-upgrade.sock"
+}
+
 services {
     Example {
         listeners {
             "0.0.0.0:8080"
         }
         connectors {
-            return code="200" response="OK"
+            section "/first" {
+                return code="200" response="first OK"
+            }
+            section "/second" {
+                return code="200" response="second OK"
+            }
+            section "/third" {
+                return code="200" response="third OK"
+            }
         }
     }
 }
+

@@ -8,17 +8,14 @@ use kdl::{KdlDocument, KdlNode, KdlValue};
 use crate::{
     config::{
         common_types::{
-            bad::Bad,
-            rate_limiter::{
-                AllRateConfig, MultiRaterConfig, RateLimitSectionParser, RateLimitingConfig,
-            },
+            SectionParser, bad::Bad, rate_limiter::{
+                AllRateConfig, MultiRaterConfig, RateLimitingConfig,
+            }
         },
         kdl::utils,
     },
     proxy::rate_limiting::{
-        multi::MultiRequestKeyKind,
-        single::{SingleInstanceConfig, SingleRequestKeyKind},
-        RegexShim,
+        RegexShim, multi::MultiRequestKeyKind, single::{SingleInstanceConfig, SingleRequestKeyKind}
     },
 };
 
@@ -27,7 +24,7 @@ pub struct RateLimitSection<'a> {
     threads_per_service: usize,
 }
 
-impl RateLimitSectionParser<KdlDocument> for RateLimitSection<'_> {
+impl SectionParser<KdlDocument, RateLimitingConfig> for RateLimitSection<'_> {
     fn parse_node(&self, node: &KdlDocument) -> miette::Result<RateLimitingConfig> {
 
         let mut rl = RateLimitingConfig::default();
