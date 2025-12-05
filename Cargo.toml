@@ -2,7 +2,8 @@
 resolver = "2"
 members = [
     "source/motya",
-    "source/motya-config"
+    "source/motya-config",
+    "source/tests"
 ]
 
 # Config for 'cargo dist'
@@ -84,4 +85,4 @@ serde = { version  = "1.0.228", features = ["derive"]}
 
 # dev
 tempfile = "3.23.0"
-
+wiremock = "0.6.5"

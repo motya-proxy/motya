@@ -1,0 +1,16 @@
+[package]
+name = "motya-tests"
+version = "0.5.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tokio = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+tempfile = { workspace = true }
+pingora = { workspace = true }
+fqdn = { workspace = true }
+wiremock = { workspace = true }
+motya-config = { path = "../motya-config" }
+motya = { path = "../motya" }

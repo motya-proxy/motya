@@ -4,17 +4,23 @@ use std::thread;
 use std::time::Duration;
 use std::io::Write;
 use std::net::TcpListener;
-use motya::config::builder::ConfigLoaderProvider;
+use motya::proxy::filters::chain_resolver::ChainResolver;
+use motya::proxy::motya_proxy_service;
+use motya_config::builder::ConfigLoaderProvider;
 use http::Uri;
 use reqwest::Client;
-use motya::config::builder::ConfigLoader;
-use motya::proxy::filters::generate_registry;
+use motya_config::builder::ConfigLoader;
+use motya::proxy::filters::generate_registry::{self, load_registry};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 use tempfile::NamedTempFile;
 
 use pingora::{prelude::HttpPeer, server::Server, services::Service};
-use motya::{config::{common_types::{connectors::{Connectors, HttpPeerOptions, Upstream, UpstreamConfig}, definitions::{ConfiguredFilter, DefinitionsTable, FilterChain, Modificator, NamedFilterChain}, listeners::{ListenerConfig, ListenerKind, Listeners}}, internal::{Config, ProxyConfig}}, proxy::{filters::{chain_resolver::ChainResolver, generate_registry::load_registry}, motya_proxy_service}};
+use motya_config::{
+    common_types::{connectors::{Connectors, HttpPeerOptions, Upstream, UpstreamConfig}, 
+    definitions::{ConfiguredFilter, DefinitionsTable, FilterChain, Modificator, NamedFilterChain}, 
+    listeners::{ListenerConfig, ListenerKind, Listeners}}, internal::{Config, ProxyConfig}, 
+};
 use fqdn::fqdn;
 use tokio::runtime::Runtime;
 

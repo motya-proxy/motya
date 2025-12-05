@@ -58,7 +58,7 @@ nix = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 wit-bindgen = { version = "0.48.1" }
-wiremock = "0.6.5"
+wiremock = { workspace = true }
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 pprof = { version = "0.15.0", features = ["flamegraph", "criterion"] }
 assert_cmd = "2.1.1"
