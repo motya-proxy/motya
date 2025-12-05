@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 use fqdn::FQDN;
 use kdl::KdlDocument;
-use crate::config::{
+use crate::{
     common_types::{
         bad::Bad, definitions::{ConfiguredFilter, FilterChain},
     },

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use fqdn::FQDN;
-use pingora_core::{Error, ErrorType, Result};
+use pingora::{Error, ErrorType, Result};
 
 use crate::proxy::{
     RequestFilterMod, RequestModifyMod, ResponseModifyMod, plugins::module::WasmModule,

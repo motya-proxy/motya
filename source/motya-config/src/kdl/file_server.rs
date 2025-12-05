@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use kdl::KdlDocument;
 
-use crate::config::{common_types::{SectionParser, file_server::FileServerConfig}, kdl::{listeners::ListenersSection, utils}};
+use crate::{common_types::{section_parser::SectionParser, file_server::FileServerConfig}, kdl::{listeners::ListenersSection, utils}};
 
 pub struct FileServerSection<'a> {
     doc: &'a KdlDocument,

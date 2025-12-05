@@ -2,7 +2,8 @@ use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 use leaky_bucket::RateLimiter;
 use pingora_proxy::Session;
 
-use super::{RegexShim, Ticket};
+use crate::legacy::something::{RegexShim, Ticket};
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SingleInstanceConfig {
@@ -72,9 +73,10 @@ impl SingleInstance {
 mod test {
 
     use std::num::NonZeroUsize;
-    use pingora_proxy::Session;
     use std::io::Cursor;
-    use crate::proxy::rate_limiting::{RegexShim, single::{SingleInstance, SingleInstanceConfig, SingleRequestKeyKind}};
+    use pingora_proxy::Session;
+
+    use crate::legacy::{something::RegexShim, single::{SingleInstance, SingleInstanceConfig, SingleRequestKeyKind}};
 
     #[tokio::test]
     async fn single_instance_get_ticket() {

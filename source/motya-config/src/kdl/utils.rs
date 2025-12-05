@@ -3,7 +3,7 @@
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 use std::collections::HashMap;
 
-use crate::config::common_types::bad::{Bad, OptExtParse};
+use crate::common_types::bad::{Bad, OptExtParse};
 
 /// Get the child document with a given name, or return an error
 ///

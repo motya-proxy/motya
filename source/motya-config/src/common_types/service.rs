@@ -1,4 +1,4 @@
-use crate::config::{common_types::{SectionParser, connectors::Connectors, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig}, internal::ProxyConfig};
+use crate::{common_types::{connectors::Connectors, listeners::Listeners, rate_limiter::RateLimitingConfig, section_parser::SectionParser}, internal::ProxyConfig};
 
 pub struct ServiceSection<'a, T> {
     listeners: &'a dyn SectionParser<T, Listeners>,

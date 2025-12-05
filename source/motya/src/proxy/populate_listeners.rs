@@ -1,12 +1,12 @@
 use pingora::listeners::tls::TlsSettings;
 
-use crate::config::common_types::listeners::{ListenerKind, Listeners};
+use motya_config::common_types::listeners::{ListenerKind, Listeners};
 
 
 
 pub fn populate_listners<T>(
     listeners: &Listeners,
-    service: &mut pingora_core::services::listening::Service<T>,
+    service: &mut pingora::services::listening::Service<T>,
 ) {
     for list_cfg in listeners.list_cfgs.iter() {
         // NOTE: See https://github.com/cloudflare/pingora/issues/182 for tracking "paths aren't

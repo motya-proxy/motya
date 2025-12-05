@@ -10,8 +10,8 @@ use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxView, WasiView};
 use wasmtime_wasi_io::IoView;
 
 use crate::proxy::plugins::module::TraitModuleState;
+use motya_config::common_types::definitions::{DefinitionsTable, PluginSource};
 use crate::{
-    config::common_types::definitions::{DefinitionsTable, PluginSource}, 
     proxy::{
         filters::registry::{FilterRegistry, RegistryFilterContainer}, 
         plugins::{host::PluginHost, module::WasmModule}

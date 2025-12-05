@@ -2,13 +2,13 @@
 
 use std::ops::{Deref, DerefMut};
 
+use async_trait::async_trait;
 use pandora_module_utils::{pingora::SessionWrapper, RequestFilter, RequestFilterResult};
-use pingora::{server::Server, upstreams::peer::HttpPeer};
-use pingora_core::Result;
+use pingora::{server::Server, upstreams::peer::HttpPeer, Result};
 use pingora_proxy::{ProxyHttp, Session};
 use static_files_module::{StaticFilesConf, StaticFilesHandler};
-
-use crate::{config::common_types::file_server::FileServerConfig, proxy::populate_listeners::populate_listners};
+use motya_config::common_types::file_server::FileServerConfig;
+use crate::proxy::populate_listeners::populate_listners;
 
 /// Create a new file serving service
 pub fn motya_file_server(
@@ -47,7 +47,7 @@ pub struct SesWrap<'a> {
     session: &'a mut Session,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl<'a> SessionWrapper for SesWrap<'a> {
     fn extensions(&self) -> &http::Extensions {
         self.extensions
@@ -89,7 +89,7 @@ impl ProxyHttp for FileServer {
         // This should never happen - we fully handle the request at the
         // `request_filter` stage, so no requests should make it to the
         // later `upstream_peer` stage.
-        Err(pingora_core::Error::new_str("Request Failed"))
+        Err(pingora::Error::new_str("Request Failed"))
     }
 
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
@@ -99,7 +99,7 @@ impl ProxyHttp for FileServer {
         };
         match self.server.request_filter(&mut wrap, &mut ()).await? {
             RequestFilterResult::ResponseSent => Ok(true),
-            _ => Err(pingora_core::Error::new_str("Request Failed")),
+            _ => Err(pingora::Error::new_str("Request Failed")),
         }
     }
 }

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use kdl::KdlDocument;
-use crate::config::{
+use crate::{
     common_types::{
-        SectionParser, bad::{Bad, OptExtParse}, system_data::SystemData
+        section_parser::SectionParser, bad::{Bad, OptExtParse}, system_data::SystemData
     },
     kdl::utils,
 };

@@ -6,19 +6,17 @@ use std::{
 use kdl::{KdlDocument, KdlNode, KdlValue};
 
 use crate::{
-    config::{
-        common_types::{
-            SectionParser, bad::Bad, rate_limiter::{
-                AllRateConfig, MultiRaterConfig, RateLimitingConfig,
-            }
-        },
-        kdl::utils,
+    common_types::{
+        bad::Bad, rate_limiter::{
+            AllRateConfig, MultiRaterConfig, RateLimitingConfig,
+        }, section_parser::SectionParser
     },
-    proxy::rate_limiting::{
-        RegexShim, multi::MultiRequestKeyKind, single::{SingleInstanceConfig, SingleRequestKeyKind}
-    },
+    kdl::utils, legacy::{multi::MultiRequestKeyKind, single::{SingleInstanceConfig, SingleRequestKeyKind}, something::RegexShim}
 };
-
+    // proxy::rate_limiting::{
+    //     RegexShim, multi::MultiRequestKeyKind, single::{SingleInstanceConfig, SingleRequestKeyKind}
+    // },
+    
 pub struct RateLimitSection<'a> {
     doc: &'a KdlDocument,
     threads_per_service: usize,

@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 use fqdn::FQDN;
 
-use crate::config::common_types::definitions::{DefinitionsTable, FilterChain, PluginDefinition};
+use motya_config::common_types::definitions::{DefinitionsTable, FilterChain, PluginDefinition};
 
 
 

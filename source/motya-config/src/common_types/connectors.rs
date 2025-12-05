@@ -3,16 +3,17 @@ use std::{collections::HashMap, hash::DefaultHasher};
 use std::fmt::Debug;
 
 use http::Uri;
-use pingora::{prelude::HttpPeer, upstreams::peer::Proxy};
-use pingora_core::protocols::l4::socket::SocketAddr;
+use pingora::{prelude::HttpPeer, upstreams::peer::Proxy, protocols::l4::socket::SocketAddr};
 
-use crate::{config::{
+use crate::common_types::simple_response_type::SimpleResponseConfig;
+use crate::{
     common_types::definitions::{FilterChain, Modificator},
-    internal::{SimpleResponse, UpstreamOptions},
-}};
+    internal::UpstreamOptions,
+};
 
 #[derive(Debug, Clone)]
 pub struct HttpPeerOptions {
+    //TODO: do separate type
     pub peer: HttpPeer,
     pub prefix_path: Uri,
     pub target_path: Uri
@@ -46,11 +47,12 @@ impl PartialEq for HttpPeerOptions {
 }
 
 
+//TODO: Convert to ConfigType
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Upstream {
     Service(HttpPeerOptions),
-    Static(SimpleResponse)
+    Static(SimpleResponseConfig)
 }
 
 

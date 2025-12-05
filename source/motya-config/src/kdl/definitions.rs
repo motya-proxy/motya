@@ -3,9 +3,9 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use fqdn::FQDN;
 use kdl::{KdlDocument, KdlNode};
 
-use crate::config::{
+use crate::{
     common_types::{
-        SectionParser, bad::Bad, definitions::{DefinitionsTable, PluginDefinition, PluginSource}
+        section_parser::SectionParser, bad::Bad, definitions::{DefinitionsTable, PluginDefinition, PluginSource}
     },
     kdl::{chain_parser::ChainParser, utils::{self, HashMapValidationExt}},
 };

@@ -15,13 +15,10 @@ use pingora::{
 };
 
 use tracing::warn;
-
-use crate::{
-    config::common_types::{
-            connectors::Connectors, file_server::FileServerConfig, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig
-        },
-    proxy::request_selector::{RequestSelector, null_selector},
-};
+use crate::{common_types::{
+    connectors::Connectors, file_server::FileServerConfig, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig
+}, legacy::request_selector::{RequestSelector, null_selector}};
+// use crate::proxy::request_selector::{RequestSelector, null_selector};
 
 /// Motya's internal configuration
 #[derive(Debug, Clone, PartialEq)]
@@ -119,12 +116,7 @@ impl Config {
 }
 
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SimpleResponse {
-    pub http_code: http::StatusCode,
-    pub response_body: String,
-    pub prefix_path: Uri
-}
+
 
 
 
@@ -142,10 +134,10 @@ pub struct ProxyConfig {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct UpstreamOptions {
-    pub(crate) selection: SelectionKind,
-    pub(crate) selector: RequestSelector,
-    pub(crate) health_checks: HealthCheckKind,
-    pub(crate) discovery: DiscoveryKind,
+    pub selection: SelectionKind,
+    pub selector: RequestSelector,
+    pub health_checks: HealthCheckKind,
+    pub discovery: DiscoveryKind,
 }
 
 impl Default for UpstreamOptions {

@@ -8,18 +8,9 @@ use kdl::KdlDocument;
 use miette::{Context, IntoDiagnostic, Result, miette};
 use tokio::fs;
 
-use crate::config::common_types::{
-    bad::Bad, 
-    definitions::DefinitionsTable, 
-    file_server::FileServerConfig, 
-    SectionParser, 
-    service::{ServiceSection, ServiceSectionParser}
-};
-
-use crate::config::internal::{Config, ProxyConfig};
-
-use crate::config::kdl::includes::IncludesSection;
-use crate::config::kdl::{
+use crate::internal::{Config, ProxyConfig};
+use crate::kdl::{
+    includes::IncludesSection,
     connectors::ConnectorsSection,
     definitions::DefinitionsSection,
     file_server::FileServerSection,
@@ -27,6 +18,13 @@ use crate::config::kdl::{
     rate_limiter::RateLimitSection,
     system_data::SystemDataSection,
     utils,
+};
+use crate::common_types::{
+    bad::Bad, 
+    definitions::DefinitionsTable, 
+    file_server::FileServerConfig,
+    section_parser::SectionParser,
+    service::{ServiceSection, ServiceSectionParser},
 };
 
 /// Orchestrates the loading and composition of the configuration from multiple KDL files.
@@ -287,7 +285,6 @@ fn extract_service(
 
 #[cfg(test)]
 mod tests {
-    use crate::proxy::filters::generate_registry;
 
     use super::*;
     use std::fs::File;
@@ -356,8 +353,8 @@ mod tests {
             .write_all(MAIN_CONFIG.as_bytes()).unwrap();
 
         let loader = ConfigLoader::default();
-        let mut def_table = DefinitionsTable::default();
-        let _ = generate_registry::load_registry(&mut def_table);
+
+        let mut def_table = DefinitionsTable::new_with_global();
 
         loader.load_entry_point(Some(main_path), &mut def_table).await.expect("Config should load successfully");
 
@@ -420,8 +417,8 @@ mod tests {
             .write_all(MAIN_CONFIG.as_bytes()).unwrap();
 
         let loader = ConfigLoader::default();
-        let mut def_table = DefinitionsTable::default();
-        let _ = generate_registry::load_registry(&mut def_table);
+
+        let mut def_table = DefinitionsTable::new_with_global();
 
         let result = loader.load_entry_point(Some(main_path), &mut def_table).await;
 
@@ -482,8 +479,8 @@ mod tests {
 
             
         let loader = ConfigLoader::default();
-        let mut def_table = DefinitionsTable::default();
-        let _ = generate_registry::load_registry(&mut def_table);
+        
+        let mut def_table = DefinitionsTable::new_with_global();
 
         
         let result = loader.load_entry_point(Some(main_path), &mut def_table).await;
@@ -534,8 +531,8 @@ mod tests {
         writeln!(main_file, "{MAIN_FILE}").unwrap();
 
         let loader = ConfigLoader::default();
-        let mut def_table = DefinitionsTable::default();
-        let _ = generate_registry::load_registry(&mut def_table);
+        let mut def_table = DefinitionsTable::new_with_global();
+        
         let config = loader.load_entry_point(Some(main_path), &mut def_table).await.expect("Failed to load config").unwrap();
 
         assert_eq!(config.threads_per_service, 2);

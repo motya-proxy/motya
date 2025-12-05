@@ -4,8 +4,8 @@ use futures_util::FutureExt;
 use miette::Result;
 use pingora_load_balancing::{Backend, Backends, LoadBalancer, discovery, prelude::RoundRobin, selection::{FNVHash, Random, consistent::KetamaHashing}};
 
-use crate::{config::{common_types::{connectors::{Upstream, UpstreamConfig}, definitions::Modificator}, internal::SelectionKind}, proxy::{filters::chain_resolver::ChainResolver, upstream_router::{Balancer, BalancerType, UpstreamContext}}};
-
+use crate::{proxy::{filters::chain_resolver::ChainResolver, upstream_router::{Balancer, BalancerType, UpstreamContext}}};
+use motya_config::{common_types::{connectors::{Upstream, UpstreamConfig}, definitions::Modificator}, internal::SelectionKind};
 
 #[derive(Clone)]
 pub struct UpstreamFactory {

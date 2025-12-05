@@ -10,8 +10,6 @@ use regex::Regex;
 //   multiple bucket keys, like tracking all of the source IP addresses
 // * "Single" rate limiters use a single bucket, for example `any-matching-uri`,
 //   which uses a single bucket for all matching URIs
-pub mod multi;
-pub mod single;
 
 #[derive(Debug, Clone)]
 pub struct RegexShim(pub Regex);
@@ -48,7 +46,7 @@ pub enum Outcome {
 /// the rate limited option.
 #[must_use = "You must call `Ticket::wait()` to wait your turn!"]
 pub struct Ticket {
-    limiter: Arc<RateLimiter>,
+    pub limiter: Arc<RateLimiter>,
 }
 
 impl Ticket {

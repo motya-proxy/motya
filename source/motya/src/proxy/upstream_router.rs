@@ -5,9 +5,8 @@ use matchit::{InsertError, Router};
 use pingora::prelude::HttpPeer;
 use pingora_load_balancing::{Backend, Backends, LoadBalancer, discovery, prelude::RoundRobin, selection::{FNVHash, Random, consistent::KetamaHashing}};
 
-use crate::{config::{common_types::{connectors::{HttpPeerOptions, Upstream, UpstreamConfig}, definitions::Modificator}, internal::{SelectionKind, SimpleResponse}}, proxy::{filters::chain_resolver::RuntimeChain, request_selector::{ContextInfo, RequestSelector, SessionInfo}}};
-
-
+use crate::proxy::filters::chain_resolver::RuntimeChain;
+use motya_config::{common_types::connectors::Upstream, legacy::request_selector::{ContextInfo, RequestSelector, SessionInfo}};
 
 pub struct UpstreamContext {
     pub upstream: Upstream,

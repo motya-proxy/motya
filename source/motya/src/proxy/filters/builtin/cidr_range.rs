@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use async_trait::async_trait;
 use cidr::IpCidr;
 use pingora::ErrorType;
-use pingora_core::{protocols::l4::socket::SocketAddr, Error, Result};
+use pingora::{protocols::l4::socket::SocketAddr, Error, Result};
 use pingora_proxy::Session;
 
 use crate::proxy::{MotyaContext, filters::{builtin::helpers::extract_val, types::RequestFilterMod}};

@@ -1,14 +1,20 @@
 use async_trait::async_trait;
 use bytes::Bytes;
-use pingora_core::Result;
+use http::Uri;
+use motya_config::common_types::simple_response_type::SimpleResponseConfig;
+use pingora::Result;
 use pingora_http::ResponseHeader;
 use pingora_proxy::Session;
 
-use crate::{
-    config::internal::SimpleResponse, 
-    proxy::{MotyaContext, filters::types::RequestFilterMod}
-};
 
+use crate::proxy::{MotyaContext, filters::types::RequestFilterMod};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SimpleResponse {
+    pub http_code: http::StatusCode,
+    pub response_body: String,
+    pub prefix_path: Uri
+}
 
 #[async_trait]
 impl RequestFilterMod for SimpleResponse {
@@ -22,5 +28,16 @@ impl RequestFilterMod for SimpleResponse {
         session.downstream_session.write_response_body(Bytes::from(body), true).await?;
         session.downstream_session.set_keepalive(None);
         return Ok(true);
+    }
+}
+
+
+impl From<SimpleResponseConfig> for SimpleResponse {
+    fn from(value: SimpleResponseConfig) -> Self {
+        Self {
+            http_code: value.http_code,
+            prefix_path: value.prefix_path,
+            response_body: value.response_body
+        }
     }
 }

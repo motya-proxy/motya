@@ -1,9 +1,7 @@
 use std::num::NonZeroUsize;
 
-use crate::proxy::rate_limiting::{
-    multi::MultiRequestKeyKind,
-    single::{SingleInstanceConfig, SingleRequestKeyKind},
-};
+use crate::legacy::{multi::MultiRequestKeyKind, single::{SingleInstanceConfig, SingleRequestKeyKind}};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultiRaterInstanceConfig {

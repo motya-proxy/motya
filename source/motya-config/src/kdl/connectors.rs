@@ -6,26 +6,23 @@ use std::{
 use http::{StatusCode, Uri};
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 use miette::SourceSpan;
-use pandora_module_utils::pingora::SocketAddr;
-use pingora::{prelude::HttpPeer, protocols::ALPN};
+use pingora::{prelude::HttpPeer, protocols::{ALPN, l4::socket::SocketAddr}};
 
 use crate::{
-    config::{
-        common_types::{
-            SectionParser, bad::{Bad, OptExtParse}, connectors::{
-                Connectors, ConnectorsLeaf, HttpPeerOptions, Upstream,
-                UpstreamConfig,
-            }, definitions::{DefinitionsTable, FilterChain, Modificator, NamedFilterChain}
-        },
-        internal::{DiscoveryKind, HealthCheckKind, SelectionKind, SimpleResponse, UpstreamOptions},
-        kdl::{chain_parser::ChainParser, utils::{self, HashMapValidationExt}},
+    common_types::{
+        bad::{Bad, OptExtParse}, connectors::{
+            Connectors, ConnectorsLeaf, HttpPeerOptions, Upstream,
+            UpstreamConfig,
+        }, definitions::{DefinitionsTable, FilterChain, Modificator, NamedFilterChain}, section_parser::SectionParser, simple_response_type::SimpleResponseConfig
     },
-    proxy::request_selector::{
-        RequestSelector, null_selector, source_addr_and_uri_path_selector, uri_path_selector
-    },
+    internal::{DiscoveryKind, HealthCheckKind, SelectionKind, UpstreamOptions},
+    kdl::{chain_parser::ChainParser, utils::{self, HashMapValidationExt}}, legacy::request_selector::{RequestSelector, null_selector, source_addr_and_uri_path_selector, uri_path_selector},
+
 };
 
-
+    // proxy::request_selector::{
+    //     RequestSelector, null_selector, source_addr_and_uri_path_selector, uri_path_selector
+    // },
 
 pub struct ConnectorsSection<'a> {
     table: &'a DefinitionsTable,
@@ -222,7 +219,7 @@ impl<'a> ConnectorsSection<'a> {
             .map_err(|err| Bad::docspan(format!("Not a valid http code, reason: '{err}'"), self.doc, &node.span()))?;
 
         Ok(ConnectorsLeaf::Upstream(
-            Upstream::Static(SimpleResponse { http_code, response_body: response.to_string(), prefix_path: base_path })
+            Upstream::Static(SimpleResponseConfig { http_code, response_body: response.to_string(), prefix_path: base_path })
         ))
     }
 
@@ -477,7 +474,7 @@ fn parse_proto_value(value: &str) -> Result<Option<ALPN>, String> {
 #[cfg(test)]
 mod tests {
     
-    use crate::config::kdl::definitions::DefinitionsSection;
+    use crate::kdl::definitions::DefinitionsSection;
 
     use super::*;
 
@@ -820,7 +817,7 @@ mod tests {
         let simple = &section.parse_connections_node(&doc, &mut anon).unwrap()[0];
         
         if let ConnectorsLeaf::Upstream(Upstream::Service(s)) = simple {
-            assert_eq!(s.peer._address, pandora_module_utils::pingora::SocketAddr::Inet(std::net::SocketAddr::V4("0.0.0.0:8000".parse().unwrap())))
+            assert_eq!(s.peer._address, SocketAddr::Inet(std::net::SocketAddr::V4("0.0.0.0:8000".parse().unwrap())))
         } else {
             panic!("Expected Service variant, got");
         }

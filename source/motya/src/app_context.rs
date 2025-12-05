@@ -1,10 +1,17 @@
 use std::sync::Arc;
 
 use clap::{CommandFactory, FromArgMatches};
+use motya_config::common_types::definitions::DefinitionsTable;
 use pingora::{server::Server, services::Service};
 use tokio::sync::Mutex;
-
-use crate::{config::{builder::{ConfigLoader, ConfigLoaderProvider}, cli::Cli, common_types::definitions::DefinitionsTable, internal::Config}, files::motya_file_server, proxy::{filters::{chain_resolver::ChainResolver, generate_registry}, plugins::store::WasmPluginStore, motya_proxy_service, upstream_factory::UpstreamFactory, watcher::file_watcher::ConfigWatcher}};
+use motya_config::{builder::{ConfigLoader, ConfigLoaderProvider}, cli::Cli, internal::Config};
+use crate::{
+    files::motya_file_server, 
+    proxy::{filters::{chain_resolver::ChainResolver, generate_registry}, 
+    plugins::store::WasmPluginStore,
+    motya_proxy_service, 
+    upstream_factory::UpstreamFactory,
+    watcher::file_watcher::ConfigWatcher}};
 
 
 pub struct AppContext {

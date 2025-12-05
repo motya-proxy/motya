@@ -8,12 +8,12 @@ use std::{fmt::Debug, hash::Hash, net::IpAddr, num::NonZeroUsize, sync::Arc, tim
 
 use concread::arcache::{ARCache, ARCacheBuilder};
 use leaky_bucket::RateLimiter;
-use pandora_module_utils::pingora::SocketAddr;
+use pingora::protocols::l4::socket::SocketAddr;
 use pingora_proxy::Session;
 
-use crate::{config::common_types::rate_limiter::MultiRaterConfig, proxy::rate_limiting::Ticket};
+use crate::{common_types::rate_limiter::MultiRaterConfig, legacy::something::Ticket};
 
-use super::RegexShim;
+use super::something::RegexShim;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MultiRequestKeyKind {
@@ -218,14 +218,16 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::proxy::rate_limiting::Outcome;
+
+    use crate::legacy::something::Outcome;
+
     use super::*;
     use std::time::Instant;
     use tokio::time::interval;
 
     #[tokio::test]
     async fn smoke() {
-        let _ = tracing_subscriber::fmt::try_init();
+        
         let config = MultiRaterConfig {
             threads: 2,
             max_buckets: 5,

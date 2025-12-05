@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use pingora_core::{Error, Result};
+use pingora::{Error, Result};
 use pingora_http::ResponseHeader;
 use pingora_proxy::Session;
 use regex::Regex;

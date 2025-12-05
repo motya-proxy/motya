@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TlsConfig {
-    pub(crate) cert_path: PathBuf,
-    pub(crate) key_path: PathBuf,
+    pub cert_path: PathBuf,
+    pub key_path: PathBuf,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -6,8 +6,8 @@ use miette::IntoDiagnostic;
 use notify::{Event, RecursiveMode, Watcher};
 use tokio::sync::{Mutex, mpsc};
 
-use crate::{config::{builder::{ConfigLoader, ConfigLoaderProvider}, common_types::definitions::DefinitionsTable, internal::{Config, ProxyConfig}}, proxy::{SharedProxyState, filters::{generate_registry, registry::FilterRegistry}, upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter}};
-
+use crate::{proxy::{SharedProxyState, filters::{generate_registry, registry::FilterRegistry}, upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter}};
+use motya_config::{builder::{ConfigLoader, ConfigLoaderProvider}, common_types::definitions::DefinitionsTable, internal::{Config, ProxyConfig}};
 
 
 pub struct ConfigWatcher<TConfigLoader: ConfigLoaderProvider + Clone = ConfigLoader> {

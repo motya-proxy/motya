@@ -7,7 +7,6 @@ pub mod definitions;
 pub mod system_data;
 pub mod file_server;
 pub mod service;
-
-pub trait SectionParser<TDocument, TResult> {
-    fn parse_node(&self, document: &TDocument) -> miette::Result<TResult>;
-}
+pub mod builtin_filters_name;
+pub mod section_parser;
+pub mod simple_response_type;

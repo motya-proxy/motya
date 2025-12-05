@@ -1,4 +1,3 @@
-mod config;
 mod files;
 mod proxy;
 mod app_context;

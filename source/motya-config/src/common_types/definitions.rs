@@ -1,8 +1,8 @@
 
-use std::{collections::{HashMap, HashSet}, hash::Hash, path::PathBuf};
+use std::{collections::{HashMap, HashSet}, path::PathBuf};
 use fqdn::FQDN;
 
-use crate::proxy::filters::generate_registry::load_definitions_table;
+use crate::common_types::builtin_filters_name::load_definitions_table;
 
 /// Definitions Table (Intermediate Representation).
 ///

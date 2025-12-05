@@ -5,9 +5,9 @@ use std::{
 
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 
-use crate::config::{
+use crate::{
     common_types::{
-        SectionParser, bad::Bad, listeners::{
+        section_parser::SectionParser, bad::Bad, listeners::{
             ListenerConfig, ListenerKind, Listeners, TlsConfig,
         }
     },

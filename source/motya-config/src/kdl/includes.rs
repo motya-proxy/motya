@@ -1,6 +1,6 @@
 use kdl::KdlDocument;
-use crate::config::{
-    common_types::{SectionParser, bad::Bad},
+use crate::{
+    common_types::{section_parser::SectionParser, bad::Bad},
     kdl::utils,
 };
 

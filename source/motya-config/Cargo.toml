@@ -1,0 +1,25 @@
+[package]
+name = "motya-config"
+version = "0.5.0"
+edition = "2021"
+
+[dependencies]
+async-recursion = { workspace = true }
+fqdn = { workspace = true }
+arc-swap = { workspace = true }
+tracing = { workspace = true } 
+http = { workspace = true }
+tokio = { workspace = true }
+pingora = { workspace = true }
+pingora-proxy = { workspace = true }
+clap = { workspace = true }
+kdl = { workspace = true }
+miette = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }
+leaky-bucket = { workspace = true }
+concread = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

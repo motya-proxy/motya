@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use pingora_core::{Error, Result};
+use pingora::{Error, Result};
 use pingora_http::RequestHeader;
 use pingora_proxy::Session;
 use regex::Regex;

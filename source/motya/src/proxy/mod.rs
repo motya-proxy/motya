@@ -1,33 +1,23 @@
-//! Proxy handling
-//!
-//! This module contains the primary proxying logic for Motya. At the moment,
-//! this includes creation of HTTP proxy services, as well as Path Control
-//! modifiers.
-
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
 
 use futures_util::future::try_join_all;
-use pingora::server::Server;
-use pingora_core::{upstreams::peer::HttpPeer, Result};
+use pingora::{server::Server, upstreams::peer::HttpPeer, Result};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
-
+use motya_config::legacy::{multi::MultiRaterInstance, single::SingleInstance, something::Outcome};
+use motya_config::legacy::request_selector::{ContextInfo, RequestSelector, SessionInfo, null_selector};
+use motya_config::{common_types::{connectors::{Upstream, UpstreamConfig}, listeners::Listeners, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}};
+use crate::proxy::filters::builtin::simple_response::SimpleResponse;
 use crate::{
-    config::{common_types::{connectors::{Upstream, UpstreamConfig}, listeners::Listeners, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}},
     proxy::{
-        filters::{chain_resolver::ChainResolver, types::{RequestFilterMod, RequestModifyMod, ResponseModifyMod}}, plugins::module::WasmModule, populate_listeners::populate_listners, request_selector::{ContextInfo, RequestSelector, SessionInfo, null_selector}, upstream_factory::UpstreamFactory, upstream_router::{RouteType, UpstreamContext, UpstreamRouter}
+        filters::{chain_resolver::ChainResolver, types::{RequestFilterMod, RequestModifyMod, ResponseModifyMod}}, plugins::module::WasmModule, populate_listeners::populate_listners, upstream_factory::UpstreamFactory, upstream_router::{RouteType, UpstreamContext, UpstreamRouter}
     },
 };
 
-use self::{
-    rate_limiting::{multi::MultiRaterInstance, single::SingleInstance, Outcome},
-};
 
-pub mod rate_limiting;
-pub mod request_selector;
 pub mod upstream_router;
 pub mod filters;
 pub mod plugins;
@@ -244,8 +234,8 @@ impl ProxyHttp for MotyaProxyService
                 }
             }
             
-            if let Upstream::Static(response) = &upstream_ctx.upstream {
-                let _ = response.request_filter(session, ctx).await?;
+            if let Upstream::Static(response) = upstream_ctx.upstream.clone() {
+                let _ = std::convert::Into::<SimpleResponse>::into(response).request_filter(session, ctx).await?;
                 return Ok(true);
             }
         }

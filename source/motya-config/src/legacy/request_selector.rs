@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use http::Uri;
-use pingora_core::protocols::l4::socket::SocketAddr;
+use pingora::protocols::l4::socket::SocketAddr;
 
 pub struct SessionInfo<'a> {
     pub client_addr: Option<&'a SocketAddr>,

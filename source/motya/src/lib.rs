@@ -1,3 +1,3 @@
 pub mod proxy;
-pub mod config;
 pub mod files;
+pub mod config_aggregator;

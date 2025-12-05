@@ -3,7 +3,7 @@ use http::StatusCode;
 use miette::{Context, IntoDiagnostic, Result, miette};
 use reqwest::Client;
 
-use crate::config::common_types::definitions::PluginSource;
+use motya_config::common_types::definitions::PluginSource;
 
 pub struct PluginLoader;
 

@@ -1,12 +1,8 @@
 //! Configuration sourced from the CLI
 
 use clap::Parser;
-use tokio::sync::Mutex;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
-use clap::{CommandFactory, FromArgMatches};
-
-use crate::{config::{builder::{ConfigLoader, ConfigLoaderProvider}, common_types::definitions::DefinitionsTable, internal::{self, Config}}, proxy::{filters::{chain_resolver::ChainResolver, generate_registry, registry::FilterRegistry}, plugins::store::WasmPluginStore, upstream_factory::UpstreamFactory, watcher::file_watcher::ConfigWatcher}};
 
 
 #[derive(Parser, Debug)]
