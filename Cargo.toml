@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "source/river"
+    "source/motya"
 ]
 
 # Config for 'cargo dist'

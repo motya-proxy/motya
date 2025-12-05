@@ -1,0 +1,26 @@
+system {
+    threads-per-service 8
+    daemonize #false 
+    pid-file "/tmp/motya.pidfile"
+    upgrade-socket "/tmp/motya-upgrade.sock"
+}
+
+services {
+    Example {
+        listeners {
+            "0.0.0.0:8080"
+        }
+        connectors {
+            section "/first" {
+                return code="200" response="first OK"
+            }
+            section "/second" {
+                return code="200" response="second OK"
+            }
+            section "/third" {
+                return code="200" response="third OK"
+            }
+        }
+    }
+}
+

@@ -1,0 +1,29 @@
+system {
+    threads-per-service 8
+    daemonize #false 
+    pid-file "/tmp/motya.pidfile"
+    upgrade-socket "/tmp/motya-upgrade.sock"
+}
+
+definitions {
+    plugins {
+        plugin {
+            name "example-plugin"
+            load path="/path-to-your-module.wasm"
+        }
+    }
+}
+
+services {
+    Example {
+        listeners {
+            "0.0.0.0:8080"
+        }
+        connectors {
+            section "/" {
+                use-chain "example-plugin.my_filter"
+                return code="200" response="OK"
+            }
+        }
+    }
+}

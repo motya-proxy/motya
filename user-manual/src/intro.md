@@ -1,15 +1,15 @@
 # Introduction
 
-This is the user/operator facing manual for the River reverse proxy application.
+This is the user/operator facing manual for the Motya reverse proxy application.
 
-River is a reverse proxy application under development, utilizing the `pingora` reverse proxy engine
+Motya is a reverse proxy application under development, utilizing the `pingora` reverse proxy engine
 from Cloudflare. It is written in the Rust language. It is configurable, allowing for options
 including routing, filtering, and modification of proxied requests.
 
-River acts as a binary distribution of the `pingora` engine - providing a typical application
+Motya acts as a binary distribution of the `pingora` engine - providing a typical application
 interface for configuration and customization for operators.
 
-The source code and issue tracker for River can be found [on GitHub]
+The source code and issue tracker for Motya can be found [on GitHub]
 
 [on GitHub]: https://github.com/memorysafety/river
 

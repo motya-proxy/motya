@@ -1,4 +1,4 @@
-# `river` roadmap - End of June, 2024
+# `motya` roadmap - End of June, 2024
 
 ## Completed Milestones
 
@@ -6,7 +6,7 @@
 
 This work took place over the course of April 2024. The goals of this milestone were:
 
-1. Getting the river application up and running as a Linux binary
+1. Getting the motya application up and running as a Linux binary
 2. Getting enough configuration options working to allow for basic operation
 3. Integrating the pingora library and getting basic reverse proxy operation working
 4. Start setting up build and release infrastructure
@@ -50,15 +50,15 @@ This work was focused on "initial Robustness" features, including:
 This work was not planned but occurred as part of the v0.5.0, but happened.
 
 1. Adoption of the KDL language for configuration
-2. Development of the [River User Manual]
+2. Development of the [Motya User Manual]
 3. Support for HTTP2 connection to downstream clients and upstream servers
 
-[River User Manual]: https://onevariable.com/river-user-manual/
+[Motya User Manual]: https://onevariable.com/motya-user-manual/
 
 ## Future Milestones - towards 1.0
 
 The following milestones are working towards the requirements specified in the design document
-for `river`: https://github.com/memorysafety/river/blob/main/docs/what-is-it.md
+for `motya`: https://github.com/memorysafety/river/blob/main/docs/what-is-it.md
 
 These milestones are the currently planned way of structuring major features in the approach
 towards a stable 1.0 release.
@@ -112,17 +112,17 @@ would be. In order to support seamless hand-off between "old" and "new" deployme
 discover new back-end servers, and retire old back-end servers is necessary.
 
 Additionally, support for Service Discovery features also allows for simplified Reverse Proxy
-configuration: It is not necessary to configure River with all potential servers at starting time,
+configuration: It is not necessary to configure Motya with all potential servers at starting time,
 eliding this to be detected at runtime.
 
 #### Requirements/Features to Implement:
 
-1. River MUST support the use of DNS-Service Discovery to provide a list of upstream servers for a
+1. Motya MUST support the use of DNS-Service Discovery to provide a list of upstream servers for a
    given service
-2. River MUST support the use of SRV records to provide a list of upstream servers for a given
+2. Motya MUST support the use of SRV records to provide a list of upstream servers for a given
    service
-3. River MUST have a configurable timeout for re-polling poll-based service discovery mechanisms
-4. River MUST support the use of DNS TTL as timeout value for re-polling poll-based service
+3. Motya MUST have a configurable timeout for re-polling poll-based service discovery mechanisms
+4. Motya MUST support the use of DNS TTL as timeout value for re-polling poll-based service
    discovery mechanisms
 5. Ensure that we support the following for discovered upstreams:
     * Timeouts on connections
@@ -151,7 +151,7 @@ connections should be **rejected**, both for security reasons, as well as preven
 overload of upstream servers, which can result in Denial Of Service conditions.
 
 The ability to quickly and efficiently deny unwanted traffic is an important feature to
-enable real-world production usage of River.
+enable real-world production usage of Motya.
 
 #### Requirements/Features to Implement:
 
@@ -160,14 +160,14 @@ enumerated.
 
 ### Polish, packaging, and pre-release / v0.9.x+
 
-At this stage, `river` is considered nearly feature complete for a 1.0 release. This milestone
+At this stage, `motya` is considered nearly feature complete for a 1.0 release. This milestone
 is intended to prepare release candidates, which can be used for widespread test releases.
 
 Particularly, this stage is also when we will want to ensure that development and operational
-documentation for River is complete, and suitable for end-users who are not already familiar
-with River during the early preview stages.
+documentation for Motya is complete, and suitable for end-users who are not already familiar
+with Motya during the early preview stages.
 
-It is expected to potentially make any remaining breaking changes, work to ensure that River
+It is expected to potentially make any remaining breaking changes, work to ensure that Motya
 can be packaged in a variety of expected ways, and to get user feedback with respect to
 performance and usability.
 
@@ -178,17 +178,17 @@ the other existing milestones:
 
 * Building out more extensive unit, functional, user interface, and end-to-end testing
     * This also may include augmenting existing pingora tests
-    * This also will include developing an integration test suite specific to river
+    * This also will include developing an integration test suite specific to motya
 * Building out benchmarking and regression test suites
     * These will be used to ensure addition of new features does not regress overall performance
-    * The intent of these benchmarks are largely to be used relative to river itself, not
+    * The intent of these benchmarks are largely to be used relative to motya itself, not
       necessarily against other existing proxying tools
 * Extending and enhancing structured logging and metrics
     * We will want to instrument aspects of the proxying lifecycle, to be able to make
-      meaningful measurements of river's performance over time
+      meaningful measurements of motya's performance over time
     * We will want to take feedback from real-world and benchmarking use cases in
       order to make it possible to debug and reason about the internal workings of
-      river from an operational perspective
+      motya from an operational perspective
 * Review of "UX Consistency"
     * Ensure choices regarding configuration, to ensure that options are reasonable
     * Ensure Configuration Files, Command Line, and Environment Variable interfaces
@@ -200,7 +200,7 @@ the other existing milestones:
 
 ### Release / v1.x.x
 
-At this stage, `river` will make a 1.0 release.
+At this stage, `motya` will make a 1.0 release.
 
 ## Far Future Milestones - Beyond 1.0
 

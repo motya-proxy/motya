@@ -1,0 +1,20 @@
+definitions {
+    modifiers {
+        namespace "motya" {
+
+            namespace "filters" {
+                def name="block-cidr-range"
+                def name="module"
+            }
+
+            namespace "request" {
+                def name="upsert-header"
+            }
+
+            namespace "response" {
+                def name="upsert-header"
+                def name="remove-header"
+            }
+        }
+    }
+}

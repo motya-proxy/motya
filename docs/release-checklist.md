@@ -1,8 +1,8 @@
 # Release Checklist
 
-The following is the release checklist for each version of `river`.
+The following is the release checklist for each version of `motya`.
 
-* [ ] Open a PR changing the version of `river` in `Cargo.toml`, and adding a
+* [ ] Open a PR changing the version of `motya` in `Cargo.toml`, and adding a
       document to the `docs/release-notes` containing the major changes in
       this release.
 * [ ] Merge the PR
@@ -19,4 +19,4 @@ The following is the release checklist for each version of `river`.
       it should "autobump" when the new GH release is noticed).
 * [ ] Announce the release in various places
 
-[Homebrew formula]: https://github.com/Homebrew/homebrew-core/blob/master/Formula/r/river.rb
+[Homebrew formula]: https://github.com/Homebrew/homebrew-core/blob/master/Formula/r/motya.rb

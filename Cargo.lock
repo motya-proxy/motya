@@ -4006,6 +4006,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "motya"
+version = "0.5.0"
+dependencies = [
+ "arc-swap",
+ "assert_cmd",
+ "async-recursion",
+ "async-trait",
+ "bytes",
+ "cargo",
+ "cidr",
+ "clap 4.5.53",
+ "concread",
+ "criterion 0.8.0",
+ "fqdn",
+ "futures-util",
+ "http",
+ "itertools 0.14.0",
+ "kdl",
+ "lazy_static",
+ "leaky-bucket",
+ "log",
+ "matchit",
+ "miette",
+ "nix 0.30.1",
+ "notify",
+ "pandora-module-utils",
+ "pingora",
+ "pingora-core",
+ "pingora-http",
+ "pingora-load-balancing",
+ "pingora-proxy",
+ "pprof",
+ "predicates",
+ "regex",
+ "reqwest",
+ "serde",
+ "static-files-module",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "wasmtime",
+ "wasmtime-wasi",
+ "wasmtime-wasi-io",
+ "wiremock",
+ "wit-bindgen 0.48.1",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5440,57 +5491,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "river"
-version = "0.5.0"
-dependencies = [
- "arc-swap",
- "assert_cmd",
- "async-recursion",
- "async-trait",
- "bytes",
- "cargo",
- "cidr",
- "clap 4.5.53",
- "concread",
- "criterion 0.8.0",
- "fqdn",
- "futures-util",
- "http",
- "itertools 0.14.0",
- "kdl",
- "lazy_static",
- "leaky-bucket",
- "log",
- "matchit",
- "miette",
- "nix 0.30.1",
- "notify",
- "pandora-module-utils",
- "pingora",
- "pingora-core",
- "pingora-http",
- "pingora-load-balancing",
- "pingora-proxy",
- "pprof",
- "predicates",
- "regex",
- "reqwest",
- "serde",
- "static-files-module",
- "tempfile",
- "thiserror 2.0.17",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
- "wasmtime",
- "wasmtime-wasi",
- "wasmtime-wasi-io",
- "wiremock",
- "wit-bindgen 0.48.1",
 ]
 
 [[package]]

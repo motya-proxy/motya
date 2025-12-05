@@ -1,14 +1,14 @@
-# River - What to Build
+# Motya - What to Build
 
-This document is intended to describe HOW to build River, bridging the existing components provided
-by Pingora, and the implementation goals for an initial public release of the River application.
+This document is intended to describe HOW to build Motya, bridging the existing components provided
+by Pingora, and the implementation goals for an initial public release of the Motya application.
 
 This document is intended for potential implementers of the application to clarify the scope of
 work, to assist them in planning and estimation of work required.
 
 ## 1 - Foreword
 
-The intent is to build a Reverse Proxy Application (River) around the `pingora` project by
+The intent is to build a Reverse Proxy Application (Motya) around the `pingora` project by
 CloudFlare.
 
 `pingora` and its related dependencies are a set of Rust crates that contain the majority of the
@@ -59,7 +59,7 @@ All of the following items require:
 
 ## 4 - Detailed Discussion
 
-Note: This matches the organization of the [Functional Description](what-is-it.md#2---functional-description) of River.
+Note: This matches the organization of the [Functional Description](what-is-it.md#2---functional-description) of Motya.
 
 ### 4.1 - Downstream
 
@@ -71,17 +71,17 @@ Refer to [An Overview of Pingora][`pingora` overview] for details on how Downstr
 `pingora` engine. Refer to 4.6 - Configuration below for details regarding configuration.
 
 There is currently no support for HTTP3.0 in `pingora` as of February 2024, although it is planned
-in the future. It is likely River will want to add support for HTTP3.0 once `pingora` supports it.
+in the future. It is likely Motya will want to add support for HTTP3.0 once `pingora` supports it.
 
 It is not expected that major work will be required with respect to basic HTTP 1.0/2.0 protocol
-handling of Downstreams in River.
+handling of Downstreams in Motya.
 
 It will likely be necessary to support "pre-proxying" protocols. These are used when the proxying
 should be transparent. A typical setup is:
 
 1. The Client makes a request
 2. This request goes to a third party, providing proxying or security features
-3. The third party refers this request to the River server
+3. The third party refers this request to the Motya server
 
 In this case, we will need to consider the IP and details of the client, rather than the third
 party, for purposes such as rate limiting, blocking, etc.
@@ -125,7 +125,7 @@ Refer to An Overview of Pingora above for details on how Upstreams work in the `
 particularly Connector entities.
 
 There is currently no support for HTTP3.0 in `pingora` as of February 2024, although it is planned
-in the future. It is likely River will want to add support for HTTP3.0 once `pingora` supports it.
+in the future. It is likely Motya will want to add support for HTTP3.0 once `pingora` supports it.
 
 ### 4.3 - Upstream Service Discovery
 
@@ -158,7 +158,7 @@ to connections and requests and responses, based on fixed/running metrics or oth
 As an implementer, the development of these Request Path Control options are like building a set
 of tools that can be used by the operator. It is expected that the development of these tools, as
 well as ensuring that the different tools work predictably and reliably with each other is likely
-to be the largest section of development work towards the initial release of River.
+to be the largest section of development work towards the initial release of Motya.
 
 Implementers are suggested to pick reasonable, safe defaults, with the goal that installation
 with no configuration effort always being an acceptable (if not ideal) choice with respect to
@@ -217,7 +217,7 @@ the impact of their configuration choices.
 
 ### 4.7 - Environmental Requirements
 
-In general, River is intended to be run on a Linux system for production usage. This maybe be on
+In general, Motya is intended to be run on a Linux system for production usage. This maybe be on
 "bare metal", in a virtual machine, or in a containerized environment.
 
 The `pingora` engine allows for a "two stage" start, the first runs at whatever the user/group
@@ -232,11 +232,11 @@ operational model in mind.
 
 ### 4.8 - Graceful Reloading
 
-Graceful reloading allows operators to stop, reconfigure, and restart the River server, with minimal
+Graceful reloading allows operators to stop, reconfigure, and restart the Motya server, with minimal
 or no visible downtime to downstream clients.
 
 This capability is important, as other than Upstream Service Discovery, no other way is provided
-to change configuration of operational River instances. This approach was chosen largely because:
+to change configuration of operational Motya instances. This approach was chosen largely because:
 
 1. This is the model chosen by `pingora`
 2. It greatly simplifies logic - as we don't need to worry about "cache invalidation" of
@@ -248,7 +248,7 @@ capability/working model in mind.
 
 ### 4.9 - Certificate Provisioning and Management
 
-There is desire for River to be able to automatically provision certificates for domains served
+There is desire for Motya to be able to automatically provision certificates for domains served
 by it. This presents as two major capabilities:
 
 1. Obtaining a new certificate - on first run, it will be necessary to obtain a certificate before

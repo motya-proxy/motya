@@ -1,6 +1,6 @@
 # Core Concepts
 
-River is a Reverse Proxy application.
+Motya is a Reverse Proxy application.
 
 It is intended to handle connections from **Downstream** clients, forward
 **Requests** to **Upstream** servers, and then forward **Responses** from
@@ -24,10 +24,10 @@ For the purpose of this guide, we define **Requests** as messages sent
 from the downstream client to the upstream server, and define **Responses**
 as messages sent from the upstream server to the downstream client.
 
-River is capable of handling connections, requests, and responses from
+Motya is capable of handling connections, requests, and responses from
 numerous downstream clients and upstream servers simultaneously.
 
-When proxying between a downstream client and upstream server, River
+When proxying between a downstream client and upstream server, Motya
 may modify or block requests or responses. Examples of modification
 include the removal or addition of HTTP headers of requests or responses,
 to add internal metadata, or to remove sensitive information. Examples
@@ -36,7 +36,7 @@ rate limiting purposes.
 
 ## Services
 
-River is oriented around the concept of **Services**. **Services** are
+Motya is oriented around the concept of **Services**. **Services** are
 composed of three major elements:
 
 * **Listeners** - the sockets used to accept incoming connections from
@@ -47,7 +47,7 @@ composed of three major elements:
   when processing requests or responses.
 
 Services are configured independently from each other. This allows a single
-instance of the River application to handle the proxying of multiple different
+instance of the Motya application to handle the proxying of multiple different
 kinds of traffic, and to apply different rules when proxying these different
 kinds of traffic.
 
@@ -69,15 +69,15 @@ to securely accept traffic sent to a certain domain name, such as
 
 [SNI]: https://www.cloudflare.com/en-gb/learning/ssl/what-is-sni/
 
-Unlike some other reverse proxy applications, in River, a given listener
+Unlike some other reverse proxy applications, in Motya, a given listener
 is "owned" by a single service. This means that multiple services may not
 be listening to the same address and port. Traffic received by a given
 Listener will always be processed by the same Service for the duration
-of time that the River application is running.
+of time that the Motya application is running.
 
 Listeners are configured "statically": they are set in the configuration
-file loaded at the start of the River application, and are constant for
-the time that the River application is running.
+file loaded at the start of the Motya application, and are constant for
+the time that the Motya application is running.
 
 ## Connectors
 

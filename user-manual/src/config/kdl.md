@@ -1,11 +1,11 @@
 # Configuration File (KDL)
 
-The primary configuration file format used by River uses the
+The primary configuration file format used by Motya uses the
 [KDL Configuration Language](https://kdl.dev/).
 
 KDL is a language for describing structured data.
 
-There are currently two major sections used by River:
+There are currently two major sections used by Motya:
 
 ## The `system` section
 
@@ -15,14 +15,14 @@ Here is an example `system` configuration block:
 system {
     threads-per-service 8
     daemonize false
-    pid-file "/tmp/river.pidfile"
+    pid-file "/tmp/motya.pidfile"
 
     // Path to upgrade socket
     //
     // NOTE: `upgrade` is NOT exposed in the config file, it MUST be set on the CLI
     // NOTE: This has issues if you use relative paths. See issue https://github.com/memorysafety/river/issues/50
     // NOTE: The upgrade command is only supported on Linux
-    upgrade-socket "/tmp/river-upgrade.sock"
+    upgrade-socket "/tmp/motya-upgrade.sock"
 }
 ```
 
@@ -37,7 +37,7 @@ This field is optional, and defaults to `8`.
 
 ### `system.daemonize BOOL`
 
-This field configures whether River should daemonize.
+This field configures whether Motya should daemonize.
 
 The values `true` or `false` is provided as `BOOL`.
 
@@ -47,7 +47,7 @@ If this field is set as `true`, then `system.pid-file` must also be set.
 
 ### `system.pid-file PATH`
 
-This field configured the path to the created pidfile when River is configured
+This field configured the path to the created pidfile when Motya is configured
 to daemonize.
 
 A UTF-8 absolute path is provided as `PATH`.
@@ -57,7 +57,7 @@ This field is optional if `system.daemonize` is `false`, and required if
 
 ### `system.upgrade-socket`
 
-This field configured the path to the upgrade socket when River is configured
+This field configured the path to the upgrade socket when Motya is configured
 to take over an existing instance.
 
 A UTF-8 absolute path is provided as `PATH`.
@@ -90,11 +90,11 @@ services {
             }
             upstream-request {
                 filter kind="remove-header-key-regex" pattern=".*(secret|SECRET).*"
-                filter kind="upsert-header" key="x-proxy-friend" value="river"
+                filter kind="upsert-header" key="x-proxy-friend" value="motya"
             }
             upstream-response {
                 filter kind="remove-header-key-regex" pattern=".*ETag.*"
-                filter kind="upsert-header" key="x-with-love-from" value="river"
+                filter kind="upsert-header" key="x-with-love-from" value="motya"
             }
         }
         rate-limiting {
@@ -230,11 +230,11 @@ path-control {
     }
     upstream-request {
         filter kind="remove-header-key-regex" pattern=".*(secret|SECRET).*"
-        filter kind="upsert-header" key="x-proxy-friend" value="river"
+        filter kind="upsert-header" key="x-proxy-friend" value="motya"
     }
     upstream-response {
         filter kind="remove-header-key-regex" pattern=".*ETag.*"
-        filter kind="upsert-header" key="x-with-love-from" value="river"
+        filter kind="upsert-header" key="x-with-love-from" value="motya"
     }
 }
 ```
@@ -298,7 +298,7 @@ Rules are used to specify rate limiting parameters, and applicability of rules t
 
 ##### Leaky Buckets
 
-Rate limiting in River uses a [Leaky Bucket] model for determining whether a request can be served
+Rate limiting in Motya uses a [Leaky Bucket] model for determining whether a request can be served
 immediately, or if it should be rejected. For a given rule, a "bucket" of "tokens" is created, where
 one "token" is required for each request.
 
@@ -327,7 +327,7 @@ are not actively being used (somewhat similar to an LRU or "Least Recently Used"
 
 [Adaptive Replacement Cache]: https://docs.rs/concread/latest/concread/arcache/index.html
 
-There is a trade off here: The larger `max-buckets` is, the longer that River can "remember" a bucket
+There is a trade off here: The larger `max-buckets` is, the longer that Motya can "remember" a bucket
 for a given factor, such as specific IP addresses. However, it also requires more resident memory to
 retain this information.
 
