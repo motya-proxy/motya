@@ -10,3 +10,4 @@ pub mod service;
 pub mod builtin_filters_name;
 pub mod section_parser;
 pub mod simple_response_type;
+pub mod definitions_table;

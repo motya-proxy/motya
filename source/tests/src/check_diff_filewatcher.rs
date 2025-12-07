@@ -10,7 +10,7 @@ mod tests {
     use motya::proxy::motya_proxy_service;
     use motya::proxy::upstream_factory::UpstreamFactory;
     use motya::proxy::watcher::file_watcher::ConfigWatcher;
-    use motya_config::common_types::definitions::DefinitionsTable;
+    use motya_config::common_types::definitions_table::DefinitionsTable;
     use tokio::sync::Mutex;
     use tokio::time::timeout;
     use tempfile::tempdir;

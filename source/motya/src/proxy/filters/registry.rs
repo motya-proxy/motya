@@ -74,9 +74,10 @@ mod tests {
     use async_trait::async_trait;
 
     use fqdn::FQDN;
+    use motya_config::common_types::definitions_table::DefinitionsTable;
     use pingora::Result;
     use pingora_proxy::Session;
-    use motya_config::common_types::definitions::{ConfiguredFilter, DefinitionsTable, FilterChain};
+    use motya_config::common_types::definitions::{ConfiguredFilter, FilterChain};
     use crate::proxy::MotyaContext;
     use crate::proxy::filters::chain_resolver::ChainResolver;
     use crate::proxy::filters::generate_registry::load_registry;

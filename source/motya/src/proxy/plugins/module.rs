@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
 
 use async_trait::async_trait;
 use miette::miette;
+use pingora::services::background::BackgroundService;
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::Session;
 use tokio::sync::Mutex;
@@ -97,7 +98,7 @@ impl<T> Clone for WasmInvoker<T> {
 
 
 impl<T: TraitModuleState> WasmInvoker<T> {
-
+    
     pub fn new(module: WasmModule<T>, filter_name: String, config: BTreeMap<String, String>) -> Self {
         Self { config, filter_name, module }
     }

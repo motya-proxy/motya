@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 use fqdn::FQDN;
 
-use motya_config::common_types::definitions::{DefinitionsTable, FilterChain, PluginDefinition};
+use motya_config::common_types::{definitions::{FilterChain, PluginDefinition}, definitions_table::DefinitionsTable};
 
 
 
@@ -110,7 +110,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use motya_config::common_types::definitions::ConfiguredFilter;
+    use motya_config::common_types::{definitions::ConfiguredFilter, definitions_table::DefinitionsTable};
     use fqdn::fqdn;
     use super::*;
 

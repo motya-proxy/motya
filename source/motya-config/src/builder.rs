@@ -8,6 +8,7 @@ use kdl::KdlDocument;
 use miette::{Context, IntoDiagnostic, Result, miette};
 use tokio::fs;
 
+use crate::common_types::definitions_table::DefinitionsTable;
 use crate::internal::{Config, ProxyConfig};
 use crate::kdl::{
     includes::IncludesSection,
@@ -20,8 +21,7 @@ use crate::kdl::{
     utils,
 };
 use crate::common_types::{
-    bad::Bad, 
-    definitions::DefinitionsTable, 
+    bad::Bad,
     file_server::FileServerConfig,
     section_parser::SectionParser,
     service::{ServiceSection, ServiceSectionParser},
@@ -277,7 +277,7 @@ fn extract_service(
         name
     ).parse_node(node)?;
 
-    table.extend_chain(config.connectors.anonymous_chains.clone());
+    table.merge(config.connectors.anonymous_definitions.clone());
 
     Ok(config)
 }

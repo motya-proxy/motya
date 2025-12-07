@@ -3,15 +3,6 @@ use std::io::Write;
 use http::uri::PathAndQuery;
 use pingora::protocols::l4::socket::SocketAddr;
 
-pub struct SessionInfo<'a> {
-    pub client_addr: Option<&'a SocketAddr>,
-    pub path: &'a PathAndQuery
-}
-
-pub struct ContextInfo<'a> {
-    pub selector_buf: &'a mut Vec<u8>
-}
-
 
 /// A function used to determine the "key" to use for the selection process.
 ///

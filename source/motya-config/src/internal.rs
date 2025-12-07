@@ -16,8 +16,8 @@ use pingora::{
 
 use tracing::warn;
 use crate::{common_types::{
-    connectors::Connectors, file_server::FileServerConfig, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig
-}, legacy::request_selector::{RequestSelector, null_selector}};
+    connectors::Connectors, definitions::KeyTemplateConfig, file_server::FileServerConfig, listeners::Listeners, path_control::PathControl, rate_limiter::RateLimitingConfig
+}};
 // use crate::proxy::request_selector::{RequestSelector, null_selector};
 
 /// Motya's internal configuration
@@ -135,7 +135,7 @@ pub struct ProxyConfig {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UpstreamOptions {
     pub selection: SelectionKind,
-    pub selector: RequestSelector,
+    pub template: Option<KeyTemplateConfig>,
     pub health_checks: HealthCheckKind,
     pub discovery: DiscoveryKind,
 }
@@ -144,7 +144,7 @@ impl Default for UpstreamOptions {
     fn default() -> Self {
         Self {
             selection: SelectionKind::RoundRobin,
-            selector: null_selector,
+            template: None,
             health_checks: HealthCheckKind::None,
             discovery: DiscoveryKind::Static,
         }

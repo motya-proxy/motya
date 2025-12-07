@@ -7,6 +7,7 @@ use std::net::TcpListener;
 use motya::proxy::filters::chain_resolver::ChainResolver;
 use motya::proxy::motya_proxy_service;
 use motya_config::builder::FileConfigLoaderProvider;
+use motya_config::common_types::definitions_table::DefinitionsTable;
 use reqwest::Client;
 use motya_config::builder::ConfigLoader;
 use motya::proxy::filters::generate_registry::load_registry;
@@ -16,7 +17,7 @@ use tempfile::NamedTempFile;
 
 use pingora::server::Server;
 use motya_config::{
-    common_types::definitions::{ConfiguredFilter, DefinitionsTable, FilterChain}, internal::Config, 
+    common_types::definitions::{ConfiguredFilter, FilterChain}, internal::Config, 
 };
 use fqdn::fqdn;
 
@@ -86,7 +87,7 @@ async fn start_server_from_config_path(
     let config = loader.load_entry_point(Some(config_path.to_path_buf()), &mut definitions_table).await
         .unwrap()
         .unwrap();
-    
+
     let resolver = ChainResolver::new(definitions_table.clone(), Arc::new(registry.into())).await.unwrap();
     
     let proxy = config.basic_proxies.first().cloned().unwrap();

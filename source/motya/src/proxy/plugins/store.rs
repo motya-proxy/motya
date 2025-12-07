@@ -2,6 +2,7 @@ use std::{collections::HashMap, ptr::NonNull};
 use std::sync::Arc;
 use fqdn::FQDN;
 use futures_util::future::join_all;
+use motya_config::common_types::definitions_table::DefinitionsTable;
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::Session;
 use wasmtime::{Engine, Store, component::{Component, Linker}};
@@ -10,7 +11,7 @@ use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxView, WasiView};
 use wasmtime_wasi_io::IoView;
 
 use crate::proxy::plugins::module::TraitModuleState;
-use motya_config::common_types::definitions::{DefinitionsTable, PluginSource};
+use motya_config::common_types::definitions::{PluginSource};
 use crate::{
     proxy::{
         filters::registry::{FilterRegistry, RegistryFilterContainer}, 
@@ -159,6 +160,7 @@ impl IoView for ModuleState {
 #[cfg(test)]
 mod tests {
     use motya_config::common_types::definitions::PluginDefinition;
+    use motya_config::common_types::definitions_table::DefinitionsTable;
 
     use super::*;
     use std::collections::{HashMap, HashSet};
@@ -179,7 +181,8 @@ mod tests {
         DefinitionsTable::new(
             HashSet::new(),
             HashMap::new(),
-            plugins
+            plugins,
+            Default::default()
         )
     }
 
@@ -290,7 +293,7 @@ mod tests {
         });
 
         let table = DefinitionsTable::new(
-            HashSet::new(), HashMap::new(), plugins
+            HashSet::new(), HashMap::new(), plugins, Default::default()
         );
 
         let factory = WasmPluginStore::compile(&table).await.expect("Should load mixed sources");

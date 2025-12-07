@@ -22,7 +22,7 @@ services {
         connectors {
             section "/" {
                 use-chain "example-plugin.my_filter"
-                return code="200" response="OK"
+                proxy "127.0.0.1:80"
             }
         }
     }

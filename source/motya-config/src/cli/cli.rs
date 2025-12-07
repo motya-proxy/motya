@@ -58,10 +58,10 @@ pub enum Commands {
         #[arg(short, long, default_value_t = 8080)]
         port: u16,
 
-        /// * Route mappings in "path=target" format.
-        /// * If the target starts with "http", it acts as a proxy. 
-        /// * Otherwise, it is treated as a static text response.
-        /// * Example: --map "/api=http://127.0.0.1:9000" --map "/=Welcome!"
+        /// Route mappings in "path=target" format.
+        /// If the target starts with "http", it acts as a proxy. 
+        /// Otherwise, it is treated as a static text response.
+        /// Example: --map "/api=http://127.0.0.1:9000" --map "/=Welcome!"
         #[arg(short, long)]
         map: Vec<String>,
     }
@@ -75,6 +75,6 @@ pub const BANNER: &str = r#"
   |_|  |_|\___/ \__|\__, |_____|
                     |___/       
       /\_/\  
-     ( o.o )  Motya Proxy
+     ( o.o )  Motya Proxy v __p__
       > ^ <   Watching you...
 "#;

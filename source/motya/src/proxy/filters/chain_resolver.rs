@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use motya_config::common_types::definitions::{DefinitionsTable, FilterChain};
+use motya_config::common_types::definitions::{FilterChain};
+use motya_config::common_types::definitions_table::DefinitionsTable;
 use crate::proxy::filters::registry::{FilterInstance, FilterRegistry, RegistryFilterContainer};
 use crate::proxy::filters::types::{RequestFilterMod, RequestModifyMod, ResponseModifyMod};
 use crate::proxy::plugins::module::{FilterType, WasmInvoker};

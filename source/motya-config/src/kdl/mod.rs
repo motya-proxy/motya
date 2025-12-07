@@ -7,3 +7,4 @@ pub mod file_server;
 pub mod definitions;
 pub mod chain_parser;
 pub mod includes;
+pub mod key_profile_parser;

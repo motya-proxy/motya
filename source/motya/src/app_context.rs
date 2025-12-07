@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use clap::{CommandFactory, FromArgMatches};
-use motya_config::{cli::{builder::{CliConfigBuilder, RouteAction, RouteMatch, SyntheticRoute}, cli::{Cli, Commands}}, common_types::definitions::DefinitionsTable};
+use motya_config::{cli::{builder::{CliConfigBuilder, RouteAction, RouteMatch, SyntheticRoute}, cli::{Cli, Commands}}, common_types::definitions_table::DefinitionsTable};
 use pingora::{server::Server, services::Service};
 use tokio::sync::Mutex;
 use motya_config::{builder::{ConfigLoader, FileConfigLoaderProvider}, internal::Config};

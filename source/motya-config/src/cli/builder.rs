@@ -3,7 +3,7 @@ use http::{StatusCode, Uri, uri::PathAndQuery};
 use miette::IntoDiagnostic;
 use pingora::prelude::HttpPeer;
 use crate::{common_types::{
-    connectors::{Connectors, HttpPeerOptions, RouteMatcher, Upstream, UpstreamConfig}, listeners::{ListenerConfig, ListenerKind, Listeners}, rate_limiter::RateLimitingConfig, simple_response_type::SimpleResponseConfig 
+    connectors::{Connectors, HttpPeerConfig, RouteMatcher, UpstreamConfig, UpstreamContextConfig}, listeners::{ListenerConfig, ListenerKind, Listeners}, rate_limiter::RateLimitingConfig, simple_response_type::SimpleResponseConfig 
 }, internal::{ProxyConfig, UpstreamOptions}};
 use crate::internal::Config;
 
@@ -80,7 +80,7 @@ impl CliConfigBuilder {
             let upstream = match route.action {
                 
                 RouteAction::Static(text) => {
-                    Upstream::Static(SimpleResponseConfig {
+                    UpstreamConfig::Static(SimpleResponseConfig {
                         http_code: StatusCode::OK,
                         response_body: text,
                         prefix_path,
@@ -101,7 +101,7 @@ impl CliConfigBuilder {
 
                     let peer = HttpPeer::new(socket_addr, false, "".to_string());
                     
-                    Upstream::Service(HttpPeerOptions {
+                    UpstreamConfig::Service(HttpPeerConfig {
                         peer,
                         prefix_path,
                         target_path: uri.path().parse().into_diagnostic()?,
@@ -110,7 +110,7 @@ impl CliConfigBuilder {
                 }
             };
 
-            upstreams.push(UpstreamConfig {
+            upstreams.push(UpstreamContextConfig {
                 upstream,
                 chains: vec![],
                 lb_options: UpstreamOptions::default(), 
@@ -124,7 +124,7 @@ impl CliConfigBuilder {
             },
             connectors: Connectors {
                 upstreams,
-                anonymous_chains: HashMap::new(),
+                anonymous_definitions: Default::default(),
             },
             rate_limiting: RateLimitingConfig::default(),
         };

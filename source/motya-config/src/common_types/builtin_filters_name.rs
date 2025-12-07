@@ -29,7 +29,7 @@ macro_rules! impl_definitions_table {
             }
         )*
     ) => {
-        use crate::common_types::definitions::DefinitionsTable;
+        use crate::common_types::definitions_table::DefinitionsTable;
         
         pub fn load_definitions_table() -> DefinitionsTable {
             let mut definitions = DefinitionsTable::default();

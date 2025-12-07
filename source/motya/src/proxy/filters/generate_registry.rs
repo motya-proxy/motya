@@ -1,5 +1,5 @@
 use motya_config::define_builtin_filters;
-use motya_config::common_types::definitions::DefinitionsTable;
+use motya_config::common_types::definitions_table::DefinitionsTable;
 use crate::proxy::filters::registry::FilterRegistry;
 use crate::proxy::filters::registry::RegistryFilterContainer;
 use crate::proxy::filters::builtin::{

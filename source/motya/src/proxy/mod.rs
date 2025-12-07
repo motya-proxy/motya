@@ -10,9 +10,9 @@ use pingora::{server::Server, upstreams::peer::HttpPeer, Result};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
 use motya_config::legacy::{multi::MultiRaterInstance, single::SingleInstance, something::Outcome};
-use motya_config::legacy::request_selector::{ContextInfo, RequestSelector, SessionInfo, null_selector};
-use motya_config::{common_types::{connectors::{Upstream, UpstreamConfig}, listeners::Listeners, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}};
+use motya_config::{common_types::{connectors::{UpstreamConfig, UpstreamContextConfig}, listeners::Listeners, rate_limiter::{AllRateConfig, RateLimitingConfig}}, internal::{ProxyConfig, SelectionKind, UpstreamOptions}};
 use uuid::Uuid;
+use crate::proxy::context::{ContextInfo, SessionInfo};
 use crate::proxy::filters::builtin::simple_response::SimpleResponse;
 use crate::{
     proxy::{
@@ -27,6 +27,8 @@ pub mod plugins;
 pub mod upstream_factory;
 pub mod populate_listeners;
 pub mod watcher;
+pub mod balancer;
+pub mod context;
 
 pub struct RateLimiters {
     request_filter_stage_multi: Vec<MultiRaterInstance>,
@@ -66,7 +68,7 @@ impl MotyaProxyService
 {
     /// Create a new [MotyaProxyService] from the given [ProxyConfig]
     pub async fn from_basic_conf(
-        upstream_configs: Vec<UpstreamConfig>,
+        upstream_configs: Vec<UpstreamContextConfig>,
         rate_limiting: &RateLimitingConfig,
         listeners: &Listeners,
         upstream_factory: UpstreamFactory,
@@ -110,34 +112,6 @@ impl MotyaProxyService
         Ok((Box::new(my_proxy), shared_state))
     }
 }
-
-//
-// MODIFIERS
-//
-// This section implements "Path Control Modifiers". As an overview of the initially
-// planned control points:
-//
-//             ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐  ┌ ─ ─ ─ ─ ─ ─ ┐
-//                  ┌───────────┐    ┌───────────┐    ┌───────────┐
-//             │    │  Request  │    │           │    │  Request  │    │  │             │
-// Request  ═══════▶│  Arrival  │═══▶│Which Peer?│═══▶│ Forwarded │═══════▶
-//             │    │           │    │           │    │           │    │  │             │
-//                  └───────────┘    └───────────┘    └───────────┘
-//             │          │                │                │          │  │             │
-//                        │                │                │
-//             │          ├───On Error─────┼────────────────┤          │  │  Upstream   │
-//                        │                │                │
-//             │          │          ┌───────────┐    ┌───────────┐    │  │             │
-//                        ▼          │ Response  │    │ Response  │
-//             │                     │Forwarding │    │  Arrival  │    │  │             │
-// Response ◀════════════════════════│           │◀═══│           │◀═══════
-//             │                     └───────────┘    └───────────┘    │  │             │
-//               ┌────────────────────────┐
-//             └ ┤ Simplified Phase Chart │─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  └ ─ ─ ─ ─ ─ ─ ┘
-//               └────────────────────────┘
-//
-// At the moment, "Request Forwarded" corresponds with "upstream_request_filters".
-//
 
 
 pub struct MotyaContext {
@@ -214,7 +188,7 @@ impl ProxyHttp for MotyaProxyService
                 }
             }
             
-            if let Upstream::Static(response) = upstream_ctx.upstream.clone() {
+            if let UpstreamConfig::Static(response) = upstream_ctx.upstream.clone() {
                 let _ = std::convert::Into::<SimpleResponse>::into(response).request_filter(session, ctx).await?;
                 return Ok(true);
             }
@@ -235,6 +209,8 @@ impl ProxyHttp for MotyaProxyService
         match ctx.router.pick_peer(
                 &mut ContextInfo { selector_buf: &mut ctx.selector_buf }, 
                 &mut SessionInfo { 
+                    headers: session
+                        .req_header(),
                     client_addr: session.client_addr(), 
                     path: session
                         .req_header()

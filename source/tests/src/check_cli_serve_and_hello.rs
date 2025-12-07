@@ -25,7 +25,7 @@ mod tests {
         panic!("Service at {} did not start in time", url);
     }
 
-    // --- ТЕСТ HELLO MODE ---
+    // --- TEST HELLO MODE ---
     #[tokio::test]
     async fn test_cli_hello_mode_direct() {
         let port = get_free_port();
@@ -66,7 +66,7 @@ mod tests {
         assert_eq!(resp.text().await.unwrap(), expected_text);
     }
 
-    // --- ТЕСТ SERVE MODE ---
+    // --- TEST SERVE MODE ---
     #[tokio::test]
     async fn test_cli_serve_mode_direct() {
         let port = get_free_port();

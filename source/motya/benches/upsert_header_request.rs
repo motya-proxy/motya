@@ -13,9 +13,7 @@ use pingora::{prelude::HttpPeer, server::Server};
 use wiremock::MockServer;
 use motya_config::{
     common_types::{
-        connectors::{Connectors, HttpPeerOptions, Upstream, UpstreamConfig},
-        definitions::{ConfiguredFilter, DefinitionsTable, FilterChain, Modificator, NamedFilterChain},
-        listeners::{ListenerConfig, ListenerKind, Listeners},
+        connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig}, definitions::{ConfiguredFilter, FilterChain, Modificator, NamedFilterChain}, definitions_table::DefinitionsTable, listeners::{ListenerConfig, ListenerKind, Listeners}
     },
     internal::{Config, ProxyConfig},
 };
@@ -77,10 +75,10 @@ async fn setup_filters() {
 
     let proxy = ProxyConfig {
         connectors: Connectors {
-            upstreams: vec![UpstreamConfig {
+            upstreams: vec![UpstreamContextConfig {
                 lb_options: Default::default(),
                 chains,
-                upstream: Upstream::Service(HttpPeerOptions {
+                upstream: UpstreamConfig::Service(HttpPeerConfig {
                     peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
                     
                     prefix_path: PathAndQuery::from_static("/test"),
@@ -89,7 +87,7 @@ async fn setup_filters() {
                     matcher: Default::default()
                 }),
             }],
-            anonymous_chains: Default::default(),
+            anonymous_definitions: Default::default(),
         },
         listeners: Listeners {
             list_cfgs: vec![ListenerConfig {

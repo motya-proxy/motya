@@ -7,7 +7,7 @@ use notify::{Event, RecursiveMode, Watcher};
 use tokio::sync::{Mutex, mpsc};
 
 use crate::{proxy::{SharedProxyState, filters::{generate_registry, registry::FilterRegistry}, upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter}};
-use motya_config::{builder::{ConfigLoader, FileConfigLoaderProvider}, common_types::definitions::DefinitionsTable, internal::{Config, ProxyConfig}};
+use motya_config::{builder::{ConfigLoader, FileConfigLoaderProvider}, common_types::definitions_table::DefinitionsTable, internal::{Config, ProxyConfig}};
 
 
 pub struct ConfigWatcher<TConfigLoader: FileConfigLoaderProvider + Clone = ConfigLoader> {
@@ -131,8 +131,7 @@ impl<T: FileConfigLoaderProvider + Clone> ConfigWatcher<T> {
 mod tests {
     use crate::proxy::{RateLimiters, filters::chain_resolver::ChainResolver};
     use motya_config::common_types::{
-            connectors::{Connectors, RouteMatcher, Upstream, UpstreamConfig}, 
-        listeners::Listeners, rate_limiter::RateLimitingConfig, simple_response_type::SimpleResponseConfig};
+            connectors::{Connectors, RouteMatcher, UpstreamConfig, UpstreamContextConfig}, definitions_table::DefinitionsTable, listeners::Listeners, rate_limiter::RateLimitingConfig, simple_response_type::SimpleResponseConfig};
 
     use super::*;
     use std::sync::Arc;
@@ -175,11 +174,11 @@ mod tests {
             basic_proxies: vec![ProxyConfig { 
                 listeners: Listeners { list_cfgs: vec![] },
                 connectors: Connectors { 
-                    anonymous_chains: HashMap::default(), 
-                    upstreams: vec![UpstreamConfig {
+                    anonymous_definitions: Default::default(), 
+                    upstreams: vec![UpstreamContextConfig {
                         chains: vec![],
                         lb_options: Default::default(),
-                        upstream: Upstream::Static(SimpleResponseConfig {
+                        upstream: UpstreamConfig::Static(SimpleResponseConfig {
                             http_code: StatusCode::OK, 
                             response_body: "ver 1".to_string(), 
                             prefix_path: PathAndQuery::from_static("/")
@@ -220,14 +219,14 @@ mod tests {
 
         let router = tracked_router.load();
         let first_version = router.get_upstream_by_path("/").unwrap();
-        let Upstream::Static(response) = &first_version.upstream else { unreachable!() };
+        let UpstreamConfig::Static(response) = &first_version.upstream else { unreachable!() };
 
         assert_eq!(response.response_body, "ver 1");
 
         
         let mut rewrited_config = mock_loader.config_to_return.lock().await;
         let not_empty_config = rewrited_config.as_mut().unwrap();
-        not_empty_config.basic_proxies[0].connectors.upstreams[0].upstream = Upstream::Static(SimpleResponseConfig {
+        not_empty_config.basic_proxies[0].connectors.upstreams[0].upstream = UpstreamConfig::Static(SimpleResponseConfig {
             http_code: StatusCode::OK, 
             response_body: "ver 2".to_string(), 
             prefix_path: PathAndQuery::from_static("/")
@@ -240,7 +239,7 @@ mod tests {
     
         let router = tracked_router.load();
         let second_version = router.get_upstream_by_path("/").unwrap();
-        let Upstream::Static(response) = &second_version.upstream else { unreachable!() };
+        let UpstreamConfig::Static(response) = &second_version.upstream else { unreachable!() };
 
         assert_eq!(response.response_body, "ver 2");
     }

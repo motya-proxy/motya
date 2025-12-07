@@ -6,9 +6,7 @@ use pingora::{prelude::HttpPeer, server::Server};
 use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{header, method}};
 
 use motya_config::{
-    common_types::{connectors::{Connectors, HttpPeerOptions, Upstream, UpstreamConfig}, 
-    definitions::{ConfiguredFilter, DefinitionsTable, FilterChain, Modificator, NamedFilterChain}, 
-    listeners::{ListenerConfig, ListenerKind, Listeners}}, internal::{Config, ProxyConfig}
+    common_types::{connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig}, definitions::{ConfiguredFilter, FilterChain, Modificator, NamedFilterChain}, definitions_table::DefinitionsTable, listeners::{ListenerConfig, ListenerKind, Listeners}}, internal::{Config, ProxyConfig}
 };
 use fqdn::fqdn;
 use wiremock::matchers::any;
@@ -46,20 +44,20 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
 
     let proxy = ProxyConfig {
         connectors: Connectors {
-            upstreams: vec![UpstreamConfig {
+            upstreams: vec![UpstreamContextConfig {
                 lb_options: Default::default(),
                 chains: vec![Modificator::Chain(NamedFilterChain {
                     name: "block-noob".to_string(),
                     chain: chain.clone(),
                 })],
-                upstream: Upstream::Service(HttpPeerOptions {
+                upstream: UpstreamConfig::Service(HttpPeerConfig {
                     peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
                     prefix_path: PathAndQuery::from_static("/"),
                     target_path: PathAndQuery::from_static("/"),
                     matcher: Default::default()
                 }),
             }],
-            anonymous_chains: Default::default(),
+            anonymous_definitions: Default::default(),
         },
         listeners: Listeners {
             list_cfgs: vec![ListenerConfig {
@@ -134,20 +132,20 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
 
     let proxy = ProxyConfig {
         connectors: Connectors {
-            upstreams: vec![UpstreamConfig {
+            upstreams: vec![UpstreamContextConfig {
                 lb_options: Default::default(),
                 chains: vec![Modificator::Chain(NamedFilterChain {
                     name: "block-noob".to_string(),
                     chain: chain.clone(),
                 })],
-                upstream: Upstream::Service(HttpPeerOptions {
+                upstream: UpstreamConfig::Service(HttpPeerConfig {
                     peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
                     prefix_path: PathAndQuery::from_static("/"),
                     target_path: PathAndQuery::from_static("/"),
                     matcher: Default::default()
                 }),
             }],
-            anonymous_chains: Default::default(),
+            anonymous_definitions: Default::default(),
         },
         listeners: Listeners {
             list_cfgs: vec![ListenerConfig {

@@ -15,7 +15,7 @@ fn main() -> miette::Result<()> {
 
     let rt = Runtime::new().expect("Failed to build Tokio runtime");
 
-    let command = Cli::command().before_help(BANNER).get_matches();
+    let command = Cli::command().before_help(BANNER.replace("__p__", env!("CARGO_PKG_VERSION"))).get_matches();
     let cli_args = Cli::from_arg_matches(&command).expect("Failed to parse args");
         
     let mut ctx = rt.block_on(AppContext::bootstrap(cli_args))?;
