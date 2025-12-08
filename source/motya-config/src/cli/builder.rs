@@ -118,7 +118,7 @@ impl CliConfigBuilder {
             upstreams.push(UpstreamContextConfig {
                 upstream,
                 chains: vec![],
-                lb_options: UpstreamOptions::default(),
+                lb_options: None,
             });
         }
 

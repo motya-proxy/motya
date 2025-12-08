@@ -34,7 +34,6 @@ mod tests {
         let cli = Cli {
             validate_configs: false,
             threads_per_service: None,
-            config_toml: None,
             config_entry: None,
             daemonize: false,
             upgrade: false,
@@ -83,7 +82,6 @@ mod tests {
         let cli = Cli {
             validate_configs: false,
             threads_per_service: None,
-            config_toml: None,
             config_entry: None,
             daemonize: false,
             upgrade: false,
@@ -150,7 +148,6 @@ mod tests {
         let cli = Cli {
             validate_configs: false,
             threads_per_service: None,
-            config_toml: None,
             config_entry: None,
             daemonize: false,
             upgrade: false,

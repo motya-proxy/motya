@@ -41,7 +41,7 @@ impl SectionParser<KdlDocument, Connectors> for ConnectorsSection<'_> {
 
         let root_nodes = self.parse_connections_node(node, &mut anonymous_definitions)?;
 
-        let upstreams = flatten_nodes(root_nodes, &[], None);
+        let upstreams = flatten_nodes(root_nodes, &[])?;
 
         if upstreams.is_empty() {
             return Err(
@@ -727,53 +727,51 @@ impl<'a> ConnectorsSection<'a> {
 /// Recursive function to flatten the node tree
 fn flatten_nodes(
     nodes: Vec<ConnectorsLeaf>,
-    parent_rules: &[Modificator],        // Rules inherited from parents
-    parent_lb: Option<&UpstreamOptions>, // LB options inherited from parents
-) -> Vec<UpstreamContextConfig> {
+    parent_chains: &[Modificator], // Chains inherited from parents
+) -> miette::Result<Vec<UpstreamContextConfig>> {
     let mut results = Vec::new();
 
     // 1. Build context for the current level
-    let mut current_rules = parent_rules.to_vec();
-    let mut current_lb = parent_lb.cloned();
+    let mut current_chains = parent_chains.to_vec();
+    let mut local_lb_options: Option<UpstreamOptions> = None;
 
-    // Partition nodes into structural elements (Upstream, Section) and modifiers (Rule, LB).
-    // This is important so that declaration order within a block doesn't affect logic
-    // (settings should apply to the whole block).
-    let (structure, modifiers): (Vec<_>, Vec<_>) = nodes
-        .into_iter()
-        .partition(|n| matches!(n, ConnectorsLeaf::Section(_) | ConnectorsLeaf::Upstream(_)));
+    // Separate configuration (chains, lb) from structure (upstreams, sections)
+    let mut structure = Vec::new();
 
-    // Apply current level modifiers to the context
-    for node in modifiers {
+    for node in nodes {
         match node {
-            ConnectorsLeaf::Modificator(rule) => current_rules.push(rule),
-            // If LB is defined at this level, it overrides the parent's LB
-            ConnectorsLeaf::LoadBalance(lb) => current_lb = Some(lb),
-            _ => {}
+            ConnectorsLeaf::Modificator(m) => current_chains.push(m),
+            ConnectorsLeaf::LoadBalance(lb) => local_lb_options = Some(lb),
+            s => structure.push(s),
         }
     }
 
-    // 2. Traverse structural elements with the fully prepared context
+    // 2. Traverse structural elements
     for node in structure {
         match node {
             ConnectorsLeaf::Upstream(up) => {
-                // Leaf node: create the final object combining upstream and context
+                // VALIDATION: Check compatibility if LoadBalance is present
+                if local_lb_options.is_some() && !matches!(up, UpstreamConfig::MultiServer(_)) {
+                    return Err(miette::miette!(
+                        "The 'load-balance' directive can only be applied to 'proxy' blocks with multiple servers (MultiServer). Found incompatible upstream (Static or Single Service) in the same section."
+                    ));
+                }
+
                 results.push(UpstreamContextConfig {
                     upstream: up,
-                    chains: current_rules.clone(),
-                    lb_options: current_lb.clone().unwrap_or_default(),
+                    chains: current_chains.clone(),
+                    lb_options: local_lb_options.clone(),
                 });
             }
             ConnectorsLeaf::Section(children) => {
-                // Branch node: recursively descend, passing the current context
-                let children_flat = flatten_nodes(children, &current_rules, current_lb.as_ref());
+                let children_flat = flatten_nodes(children, &current_chains)?;
                 results.extend(children_flat);
             }
-            _ => unreachable!(), // Modifiers have already been filtered out
+            _ => unreachable!(),
         }
     }
 
-    results
+    Ok(results)
 }
 
 fn parse_proto_value(value: &str) -> Result<Option<ALPN>, String> {
@@ -815,7 +813,9 @@ mod tests {
                 health-check "None"
                 discovery "Static"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy {
+                server "127.0.0.1:8080"
+            }
         }
     "#;
 
@@ -825,11 +825,11 @@ mod tests {
 
         assert_eq!(connectors.upstreams.len(), 1);
         let upstream = &connectors.upstreams[0];
-
-        assert_eq!(upstream.lb_options.selection, SelectionKind::RoundRobin);
-        assert_eq!(upstream.lb_options.health_checks, HealthCheckKind::None);
-        assert_eq!(upstream.lb_options.discovery, DiscoveryKind::Static);
-        assert!(upstream.lb_options.template.is_none());
+        let lb_options = upstream.lb_options.clone().unwrap();
+        assert_eq!(lb_options.selection, SelectionKind::RoundRobin);
+        assert_eq!(lb_options.health_checks, HealthCheckKind::None);
+        assert_eq!(lb_options.discovery, DiscoveryKind::Static);
+        assert!(lb_options.template.is_none());
     }
 
     const LOAD_BALANCE_ALL_SELECTION_TYPES: &str = r#"
@@ -837,7 +837,9 @@ mod tests {
             load-balance {
                 selection "Random"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy {
+                server "127.0.0.1:8080"
+            }
         }
     "#;
 
@@ -846,7 +848,8 @@ mod tests {
         let connectors = parse_config(LOAD_BALANCE_ALL_SELECTION_TYPES).expect("Parsing failed");
 
         let upstream = &connectors.upstreams[0];
-        assert_eq!(upstream.lb_options.selection, SelectionKind::Random);
+        let lb_options = upstream.lb_options.clone().unwrap();
+        assert_eq!(lb_options.selection, SelectionKind::Random);
     }
 
     const LOAD_BALANCE_FNV_HASH: &str = r#"
@@ -854,7 +857,9 @@ mod tests {
             load-balance {
                 selection "FNV" use-key-profile="ip-profile"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy { 
+                server "127.0.0.1:8080"
+            }
         }
     "#;
 
@@ -878,7 +883,9 @@ mod tests {
             load-balance {
                 selection "FNV" use-key-profile="ip-profile"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy {
+                server "127.0.0.1:8080"
+            }
         }
     "#;
 
@@ -887,10 +894,11 @@ mod tests {
         let connectors = parse_config(LOAD_BALANCE_WITH_KEY_PROFILE).expect("Parsing failed");
 
         let upstream = &connectors.upstreams[0];
-        assert_eq!(upstream.lb_options.selection, SelectionKind::FvnHash);
-        assert!(upstream.lb_options.template.is_some());
+        let lb_options = upstream.lb_options.clone().unwrap();
+        assert_eq!(lb_options.selection, SelectionKind::FvnHash);
+        assert!(lb_options.template.is_some());
 
-        let template = upstream.lb_options.template.as_ref().unwrap();
+        let template = lb_options.template.as_ref().unwrap();
         assert_eq!(template.source, "amogus".to_string());
     }
 
@@ -899,7 +907,9 @@ mod tests {
             load-balance {
                 selection "Ketama"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy {
+                server "127.0.0.1:8080"
+            }
         }
     "#;
 
@@ -912,57 +922,6 @@ mod tests {
         assert!(err_msg.contains("requires a key source"));
     }
 
-    const LOAD_BALANCE_INHERITANCE: &str = r#"
-        connectors {
-            load-balance {
-                selection "RoundRobin"
-            }
-            
-            section "/api" {
-                load-balance {
-                    selection "Random"
-                }
-                proxy "http://127.0.0.1:8081"
-            }
-            
-            section "/static" {
-                proxy "http://127.0.0.1:8082"
-            }
-        }
-    "#;
-
-    #[test]
-    fn test_load_balance_inheritance() {
-        let connectors = parse_config(LOAD_BALANCE_INHERITANCE).expect("Parsing failed");
-
-        assert_eq!(connectors.upstreams.len(), 2);
-
-        let api_upstream = connectors
-            .upstreams
-            .iter()
-            .find(|u| match &u.upstream {
-                UpstreamConfig::Service(s) => s.prefix_path == "/api",
-                _ => false,
-            })
-            .expect("API upstream not found");
-
-        assert_eq!(api_upstream.lb_options.selection, SelectionKind::Random);
-
-        let static_upstream = connectors
-            .upstreams
-            .iter()
-            .find(|u| match &u.upstream {
-                UpstreamConfig::Service(s) => s.prefix_path == "/static",
-                _ => false,
-            })
-            .expect("Static upstream not found");
-
-        assert_eq!(
-            static_upstream.lb_options.selection,
-            SelectionKind::RoundRobin
-        );
-    }
-
     const LOAD_BALANCE_DUPLICATE: &str = r#"
         connectors {
             load-balance {
@@ -971,7 +930,9 @@ mod tests {
             load-balance {
                 selection "Random"
             }
-            proxy "http://127.0.0.1:8080"
+            proxy {
+                server "127.0.0.1:8081"
+            }
         }
     "#;
 

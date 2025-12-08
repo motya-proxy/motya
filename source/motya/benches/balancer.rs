@@ -54,7 +54,6 @@ struct BenchmarkSetup {
     proxy_url: String,
     client: Client,
     request_counter: AtomicUsize,
-    hash_algo: String,
 }
 
 impl BenchmarkSetup {
@@ -107,7 +106,6 @@ impl BenchmarkSetup {
         let cli = Cli {
             validate_configs: false,
             threads_per_service: None,
-            config_toml: None,
             config_entry: Some(config_path),
             daemonize: false,
             upgrade: false,
@@ -152,8 +150,7 @@ impl BenchmarkSetup {
         Self {
             proxy_url,
             client,
-            request_counter: AtomicUsize::new(0),
-            hash_algo: hash_algo.to_string(),
+            request_counter: AtomicUsize::new(0)
         }
     }
 }

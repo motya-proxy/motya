@@ -12,13 +12,14 @@ use motya_config::common_types::connectors::{RouteMatcher, UpstreamConfig};
 pub struct UpstreamContext {
     pub upstream: UpstreamConfig,
     pub chains: Vec<RuntimeChain>,
-    pub balancer: Balancer,
+    pub balancer: Option<Balancer>,
 }
 
 pub trait UpstreamContextTrait {
     fn get_prefix_path(&self) -> &PathAndQuery;
     fn get_route_type(&self) -> RouteMatcher;
-    fn get_balancer(&self) -> &Balancer;
+    fn get_balancer(&self) -> Option<&Balancer>;
+    fn get_peer(&self) -> Option<&HttpPeer>;
 }
 
 pub struct UpstreamRouter<TUpstream: UpstreamContextTrait> {
@@ -62,19 +63,25 @@ impl<TUpstream: UpstreamContextTrait> UpstreamRouter<TUpstream> {
             return Ok(None);
         };
 
-        let backend = upstream.get_balancer().select_backend(session);
+        if let Some(balancer) = upstream.get_balancer() {
+            let backend = balancer.select_backend(session);
 
-        let backend = backend.ok_or_else(|| {
-            pingora::Error::explain(ErrorType::HTTPStatus(500), "Unable to determine backend")
-        })?;
+            let backend = backend.ok_or_else(|| {
+                pingora::Error::explain(ErrorType::HTTPStatus(500), "Unable to determine backend")
+            })?;
 
-        Ok(Some(
-            backend
-                .ext
-                .get::<HttpPeer>()
-                .cloned()
-                .expect("HttpPeer should exist in backend.ext"),
-        ))
+            Ok(Some(
+                backend
+                    .ext
+                    .get::<HttpPeer>()
+                    .cloned()
+                    .expect("HttpPeer should exist in backend.ext"),
+            ))
+        }
+        else {
+            let peer = upstream.get_peer().expect("HttpPeer should exist in UpstreamConfig::Service");
+            Ok(Some(peer.clone()))
+        }
     }
 
     pub fn get_upstream_by_path(&self, path: &str) -> Option<&TUpstream> {
@@ -92,8 +99,8 @@ impl UpstreamContextTrait for UpstreamContext {
         }
     }
 
-    fn get_balancer(&self) -> &Balancer {
-        &self.balancer
+    fn get_balancer(&self) -> Option<&Balancer> {
+        self.balancer.as_ref()
     }
 
     fn get_route_type(&self) -> RouteMatcher {
@@ -103,22 +110,26 @@ impl UpstreamContextTrait for UpstreamContext {
             UpstreamConfig::MultiServer(m) => m.matcher,
         }
     }
+
+    // Only Service can return an HttpPeer. In the other two cases:
+    // Static - handles the request during the request_filter stage.
+    // MultiServer - processing is delegated to the load balancer.
+    fn get_peer(&self) -> Option<&HttpPeer> {
+        match &self.upstream {
+            UpstreamConfig::Service(s) => Some(&s.peer),
+            _ => None
+        }
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use std::collections::BTreeSet;
-
-    use pingora_load_balancing::{Backend, Backends, LoadBalancer, discovery, prelude::RoundRobin};
-
-    use crate::proxy::balancer::key_selector::BalancerType;
-
     use super::*;
 
     pub struct MockUpstreamContext {
         pub prefix: PathAndQuery,
         pub matcher: RouteMatcher,
-        pub balancer: Balancer,
+        pub peer: HttpPeer
     }
 
     impl UpstreamContextTrait for MockUpstreamContext {
@@ -130,25 +141,20 @@ pub mod tests {
             self.matcher
         }
 
-        fn get_balancer(&self) -> &Balancer {
-            &self.balancer
+        fn get_balancer(&self) -> Option<&Balancer> {
+            None
+        }
+        fn get_peer(&self) -> Option<&HttpPeer> {
+            Some(&self.peer)
         }
     }
 
     fn mock_context(path: &str, matcher: RouteMatcher) -> MockUpstreamContext {
-        let backend = Backend::new("0.0.0.0:0").unwrap();
-        let disco = discovery::Static::new(BTreeSet::from([backend]));
-        let backends = Backends::new(disco);
-
-        let lb = LoadBalancer::<RoundRobin>::from_backends(backends);
 
         MockUpstreamContext {
             prefix: path.parse().unwrap(),
             matcher,
-            balancer: Balancer {
-                selector: None,
-                balancer_type: BalancerType::RoundRobin(lb),
-            },
+            peer: HttpPeer::new("0.0.0.0:0", false, "".to_string())
         }
     }
 

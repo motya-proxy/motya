@@ -9,10 +9,6 @@ pub struct Cli {
     #[arg(long)]
     pub validate_configs: bool,
 
-    /// Path to the configuration file in TOML format
-    #[arg(long)]
-    pub config_toml: Option<PathBuf>,
-
     /// Path to the configuration file in KDL format
     #[arg(long)]
     pub config_entry: Option<PathBuf>,

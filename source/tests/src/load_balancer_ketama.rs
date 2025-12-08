@@ -131,7 +131,6 @@ async fn test_ketama_hashing_with_transforms() {
     let cli = Cli {
         validate_configs: false,
         threads_per_service: None,
-        config_toml: None,
         config_entry: Some(config_path),
         daemonize: false,
         upgrade: false,

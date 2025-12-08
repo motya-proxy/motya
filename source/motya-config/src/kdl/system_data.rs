@@ -319,7 +319,7 @@ mod tests {
         let input = r#"
         system {
             providers {
-                http address="127.0.0.1:9090" path="/admin/config" persist=true
+                http address="127.0.0.1:9090" path="/admin/config" persist=#true
             }
         }
         "#;

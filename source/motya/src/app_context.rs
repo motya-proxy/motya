@@ -176,7 +176,6 @@ fn apply_cli(conf: &mut Config, cli: &Cli) {
     let Cli {
         validate_configs,
         threads_per_service,
-        config_toml: _,
         config_entry: _,
         daemonize,
         upgrade,

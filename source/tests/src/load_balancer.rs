@@ -94,7 +94,6 @@ async fn test_load_balancer_round_robin_distribution() {
     let cli = Cli {
         validate_configs: false,
         threads_per_service: None,
-        config_toml: None,
         config_entry: Some(config_path),
         daemonize: false,
         upgrade: false,

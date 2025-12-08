@@ -78,7 +78,7 @@ impl PartialEq for HttpPeerConfig {
     }
 }
 
-//TODO: Convert to ConfigType
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpstreamConfig {
@@ -121,5 +121,5 @@ pub struct Connectors {
 pub struct UpstreamContextConfig {
     pub upstream: UpstreamConfig,
     pub chains: Vec<Modificator>,
-    pub lb_options: UpstreamOptions,
+    pub lb_options: Option<UpstreamOptions>,
 }
