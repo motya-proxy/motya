@@ -13,34 +13,35 @@ use std::{collections::HashMap, net::SocketAddr};
 
 pub struct SystemDataSection<'a> {
     doc: &'a KdlDocument,
+    name: &'a str
 }
 
-impl SectionParser<KdlDocument, SystemData> for SystemDataSection<'_> {
-    fn parse_node(&self, _: &KdlDocument) -> miette::Result<SystemData> {
+impl SectionParser<KdlDocument, Option<SystemData>> for SystemDataSection<'_> {
+    fn parse_node(&self, _: &KdlDocument) -> miette::Result<Option<SystemData>> {
         self.extract_system_data()
     }
 }
 
 impl<'a> SystemDataSection<'a> {
-    pub fn new(doc: &'a KdlDocument) -> Self {
-        Self { doc }
+    pub fn new(doc: &'a KdlDocument, name: &'a str) -> Self {
+        Self { doc, name }
     }
 
-    fn extract_system_data(&self) -> miette::Result<SystemData> {
+    fn extract_system_data(&self) -> miette::Result<Option<SystemData>> {
         let Some(sys) = utils::optional_child_doc(self.doc, self.doc, "system") else {
-            return Ok(SystemData::default());
+            return Ok(None);
         };
 
         let tps = self.extract_threads_per_service(sys)?;
 
         let daemonize = if let Some(n) = sys.get("daemonize") {
-            utils::extract_one_bool_arg(self.doc, n, "daemonize", n.entries())?
+            utils::extract_one_bool_arg(self.doc, n, "daemonize", n.entries(), self.name)?
         } else {
             false
         };
 
         let upgrade_socket = if let Some(n) = sys.get("upgrade-socket") {
-            let x = utils::extract_one_str_arg(self.doc, n, "upgrade-socket", n.entries(), |s| {
+            let x = utils::extract_one_str_arg(self.doc, n, "upgrade-socket", n.entries(), self.name, |s| {
                 Some(PathBuf::from(s))
             })?;
             Some(x)
@@ -49,7 +50,7 @@ impl<'a> SystemDataSection<'a> {
         };
 
         let pid_file = if let Some(n) = sys.get("pid-file") {
-            let x = utils::extract_one_str_arg(self.doc, n, "pid-file", n.entries(), |s| {
+            let x = utils::extract_one_str_arg(self.doc, n, "pid-file", n.entries(), self.name, |s| {
                 Some(PathBuf::from(s))
             })?;
             Some(x)
@@ -59,13 +60,13 @@ impl<'a> SystemDataSection<'a> {
 
         let provider = self.extract_provider_config(sys)?;
 
-        Ok(SystemData {
+        Ok(Some(SystemData {
             threads_per_service: tps,
             daemonize,
             upgrade_socket,
             pid_file,
             provider,
-        })
+        }))
     }
 
     fn extract_threads_per_service(&self, sys: &KdlDocument) -> miette::Result<usize> {
@@ -77,7 +78,7 @@ impl<'a> SystemDataSection<'a> {
             return Err(Bad::docspan(
                 "system > threads-per-service should have exactly one entry",
                 self.doc,
-                &tps.span(),
+                &tps.span(), self.name
             )
             .into());
         };
@@ -85,12 +86,12 @@ impl<'a> SystemDataSection<'a> {
         let val = tps_node.value().as_integer().or_bail(
             "system > threads-per-service should be an integer",
             self.doc,
-            &tps_node.span(),
+            &tps_node.span(), self.name
         )?;
         val.try_into().ok().or_bail(
             "system > threads-per-service should fit in a usize",
             self.doc,
-            &tps_node.span(),
+            &tps_node.span(), self.name
         )
     }
 
@@ -110,22 +111,22 @@ impl<'a> SystemDataSection<'a> {
             return Err(Bad::docspan(
                 "Multiple providers defined. Only one configuration provider is allowed at a time.",
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
             .into());
         }
 
         let (node, name, args) = nodes[0];
 
-        let mut args_map = utils::str_value_args(self.doc, args)?
+        let mut args_map = utils::str_value_args(self.doc, args, self.name)?
             .into_iter()
             .collect::<HashMap<&str, &KdlEntry>>();
 
         match name {
             "files" => {
-                args_map = args_map.ensure_only_keys(&["watch"], self.doc, node)?;
+                args_map = args_map.ensure_only_keys(&["watch"], self.doc, node, self.name)?;
 
-                let watch = Self::opt_bool("watch", &args_map, self.doc, false)?;
+                let watch = self.opt_bool("watch", &args_map, false)?;
 
                 Ok(Some(ConfigProvider::Files(FilesProviderConfig { watch })))
             }
@@ -134,15 +135,16 @@ impl<'a> SystemDataSection<'a> {
                     &["bucket", "key", "region", "interval", "endpoint"],
                     self.doc,
                     node,
+                    self.name
                 )?;
 
-                let bucket = Self::req_str("bucket", &args_map, self.doc, node)?;
-                let key = Self::req_str("key", &args_map, self.doc, node)?;
-                let region = Self::req_str("region", &args_map, self.doc, node)?;
+                let bucket = self.req_str("bucket", &args_map, node)?;
+                let key = self.req_str("key", &args_map, node)?;
+                let region = self.req_str("region", &args_map, node)?;
 
-                let interval = Self::opt_str("interval", &args_map, self.doc)?
+                let interval = self.opt_str("interval", &args_map)?
                     .unwrap_or_else(|| "60s".to_string());
-                let endpoint = Self::opt_str("endpoint", &args_map, self.doc)?;
+                let endpoint = self.opt_str("endpoint", &args_map)?;
 
                 Ok(Some(ConfigProvider::S3(S3ProviderConfig {
                     bucket,
@@ -154,25 +156,25 @@ impl<'a> SystemDataSection<'a> {
             }
             "http" => {
                 args_map =
-                    args_map.ensure_only_keys(&["address", "path", "persist"], self.doc, node)?;
+                    args_map.ensure_only_keys(&["address", "path", "persist"], self.doc, node, self.name)?;
 
-                let addr_str = Self::req_str("address", &args_map, self.doc, node)?;
+                let addr_str = self.req_str("address", &args_map, node)?;
                 let address: SocketAddr = addr_str.parse().map_err(|e| {
                     Bad::docspan(
                         format!("Invalid address format: {e}"),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                 })?;
 
-                let path = Self::req_str("path", &args_map, self.doc, node)?;
+                let path = self.req_str("path", &args_map, node)?;
                 if !path.starts_with('/') {
                     return Err(
-                        Bad::docspan("Path must start with '/'", self.doc, &node.span()).into(),
+                        Bad::docspan("Path must start with '/'", self.doc, &node.span(), self.name).into(),
                     );
                 }
 
-                let persist = Self::opt_bool("persist", &args_map, self.doc, false)?;
+                let persist = self.opt_bool("persist", &args_map, false)?;
 
                 Ok(Some(ConfigProvider::Http(HttpProviderConfig {
                     address,
@@ -183,40 +185,40 @@ impl<'a> SystemDataSection<'a> {
             unknown => Err(Bad::docspan(
                 format!("Unknown provider type: '{unknown}'. Supported: 'files', 's3', 'http'"),
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
             .into()),
         }
     }
 
     fn req_str(
+        &self,
         key: &str,
         map: &HashMap<&str, &KdlEntry>,
-        doc: &KdlDocument,
         parent: &KdlNode,
     ) -> miette::Result<String> {
         let entry = map.get(key).or_bail(
             format!("Missing required argument: '{key}'"),
-            doc,
-            &parent.span(),
+            self.doc,
+            &parent.span(), self.name
         )?;
         entry.value().as_string().map(|s| s.to_string()).or_bail(
             format!("'{key}' must be a string"),
-            doc,
-            &entry.span(),
+            self.doc,
+            &entry.span(), self.name
         )
     }
 
     fn opt_str(
+        &self,
         key: &str,
         map: &HashMap<&str, &KdlEntry>,
-        doc: &KdlDocument,
     ) -> miette::Result<Option<String>> {
         if let Some(entry) = map.get(key) {
             let s = entry.value().as_string().map(|s| s.to_string()).or_bail(
                 format!("'{key}' must be a string"),
-                doc,
-                &entry.span(),
+                self.doc,
+                &entry.span(), self.name
             )?;
             Ok(Some(s))
         } else {
@@ -225,16 +227,16 @@ impl<'a> SystemDataSection<'a> {
     }
 
     fn opt_bool(
+        &self,
         key: &str,
         map: &HashMap<&str, &KdlEntry>,
-        doc: &KdlDocument,
         default: bool,
     ) -> miette::Result<bool> {
         if let Some(entry) = map.get(key) {
             entry.value().as_bool().or_bail(
                 format!("'{key}' must be a boolean"),
-                doc,
-                &entry.span(),
+                self.doc,
+                &entry.span(), self.name
             )
         } else {
             Ok(default)
@@ -256,8 +258,8 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
-        let data = parser.extract_system_data().expect("Should parse files");
+        let parser = SystemDataSection::new(&doc, "test");
+        let data = parser.extract_system_data().expect("Should parse files").unwrap();
 
         if let Some(ConfigProvider::Files(cfg)) = data.provider {
             assert!(cfg.watch);
@@ -276,8 +278,8 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
-        let data = parser.extract_system_data().expect("Should parse s3");
+        let parser = SystemDataSection::new(&doc, "test");
+        let data = parser.extract_system_data().expect("Should parse s3").unwrap();
 
         if let Some(ConfigProvider::S3(cfg)) = data.provider {
             assert_eq!(cfg.bucket, "configs");
@@ -300,10 +302,10 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
+        let parser = SystemDataSection::new(&doc, "test");
         let data = parser
             .extract_system_data()
-            .expect("Should parse minimal s3");
+            .expect("Should parse minimal s3").unwrap();
 
         if let Some(ConfigProvider::S3(cfg)) = data.provider {
             assert_eq!(cfg.region, "eu-central-1");
@@ -324,8 +326,8 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
-        let data = parser.extract_system_data().expect("Should parse http");
+        let parser = SystemDataSection::new(&doc, "test");
+        let data = parser.extract_system_data().expect("Should parse http").unwrap();
 
         if let Some(ConfigProvider::Http(cfg)) = data.provider {
             assert_eq!(cfg.address.port(), 9090);
@@ -346,10 +348,10 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
+        let parser = SystemDataSection::new(&doc, "test");
         let data = parser
             .extract_system_data()
-            .expect("Should parse http defaults");
+            .expect("Should parse http defaults").unwrap();
 
         if let Some(ConfigProvider::Http(cfg)) = data.provider {
             assert!(!cfg.persist);
@@ -369,7 +371,7 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
+        let parser = SystemDataSection::new(&doc, "test");
         let result = parser.extract_system_data();
 
         let err_msg = result.unwrap_err().help().unwrap().to_string();
@@ -387,7 +389,7 @@ mod tests {
         }
         "#;
         let doc: KdlDocument = input.parse().unwrap();
-        let parser = SystemDataSection::new(&doc);
+        let parser = SystemDataSection::new(&doc, "test");
         let result = parser.extract_system_data();
 
         let err_msg = result.unwrap_err().help().unwrap().to_string();

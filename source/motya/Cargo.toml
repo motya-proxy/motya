@@ -39,7 +39,7 @@ pingora-proxy = { workspace = true }
 pingora-load-balancing = { workspace = true } 
 pingora-http = { workspace = true }
 static-files-module = { workspace = true } 
-tokio = { workspace = true } 
+tokio = { workspace = true, features = ["full"]} 
 clap = { workspace = true } 
 matchit = { workspace = true } 
 http = { workspace = true }  

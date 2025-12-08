@@ -22,6 +22,7 @@ pub enum ServiceConfig {
 
 pub struct ServicesSection<'a> {
     global_definitions: &'a DefinitionsTable,
+    name: &'a str
 }
 
 impl SectionParser<KdlDocument, ServicesConfig> for ServicesSection<'_> {
@@ -31,16 +32,16 @@ impl SectionParser<KdlDocument, ServicesConfig> for ServicesSection<'_> {
 }
 
 impl<'a> ServicesSection<'a> {
-    pub fn new(global_definitions: &'a DefinitionsTable) -> Self {
-        Self { global_definitions }
+    pub fn new(global_definitions: &'a DefinitionsTable, name: &'a str) -> Self {
+        Self { global_definitions, name }
     }
 
     pub fn parse(&self, root: &KdlDocument) -> miette::Result<ServicesConfig> {
         let mut proxies: Vec<ProxyConfig> = vec![];
         let mut file_servers: Vec<FileServerConfig> = vec![];
-        let services_node = utils::required_child_doc(root, root, "services")?;
+        let services_node = utils::required_child_doc(root, root, "services", self.name)?;
 
-        for (name, service_node) in utils::wildcard_argless_child_docs(root, services_node)? {
+        for (name, service_node) in utils::wildcard_argless_child_docs(root, services_node, self.name)? {
             match self.parse_service(name, service_node, root)? {
                 ServiceConfig::FileServer(fs) => file_servers.push(fs),
                 ServiceConfig::Proxy(proxy) => proxies.push(proxy),
@@ -72,6 +73,7 @@ impl<'a> ServicesSection<'a> {
                 format!("Unknown service type for '{}'", name),
                 root,
                 &node.span(),
+                self.name
             )
             .into())
         }
@@ -83,9 +85,9 @@ impl<'a> ServicesSection<'a> {
         node: &KdlDocument,
         root: &KdlDocument,
     ) -> miette::Result<ProxyConfig> {
-        let listeners = ListenersSection::new(root).parse_node(node)?;
+        let listeners = ListenersSection::new(root, self.name).parse_node(node)?;
 
-        let connectors = ConnectorsSection::new(root, self.global_definitions).parse_node(node)?;
+        let connectors = ConnectorsSection::new(root, self.global_definitions, self.name).parse_node(node)?;
 
         Ok(ProxyConfig {
             name: name.to_string(),

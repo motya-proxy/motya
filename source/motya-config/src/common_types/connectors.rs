@@ -1,8 +1,7 @@
 use std::fmt::Debug;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::net::SocketAddr;
 
 use http::uri::PathAndQuery;
-use pingora::{prelude::HttpPeer, protocols::l4::socket::SocketAddr, upstreams::peer::Proxy};
 
 use crate::common_types::{
     definitions::Modificator, definitions_table::DefinitionsTable,
@@ -10,31 +9,11 @@ use crate::common_types::{
 };
 use crate::internal::UpstreamOptions;
 
-#[derive(Hash, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ALPN {
     H1,
     H2,
     H2H1,
-}
-
-impl From<pingora::protocols::ALPN> for ALPN {
-    fn from(value: pingora::protocols::ALPN) -> Self {
-        match value {
-            pingora::protocols::ALPN::H1 => ALPN::H1,
-            pingora::protocols::ALPN::H2 => ALPN::H2,
-            pingora::protocols::ALPN::H2H1 => ALPN::H2H1,
-        }
-    }
-}
-
-impl From<ALPN> for pingora::protocols::ALPN {
-    fn from(value: ALPN) -> Self {
-        match value {
-            ALPN::H1 => pingora::protocols::ALPN::H1,
-            ALPN::H2 => pingora::protocols::ALPN::H2,
-            ALPN::H2H1 => pingora::protocols::ALPN::H2H1,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -44,38 +23,13 @@ pub enum RouteMatcher {
     Prefix,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HttpPeerConfig {
-    //TODO: do separate type
-    pub peer: HttpPeer,
+    pub peer_address: SocketAddr,
+    pub alpn: ALPN,
     pub prefix_path: PathAndQuery,
     pub target_path: PathAndQuery,
     pub matcher: RouteMatcher,
-}
-
-impl PartialEq for HttpPeerConfig {
-    fn eq(&self, other: &Self) -> bool {
-        if self.prefix_path != other.prefix_path
-            || self.target_path != other.target_path
-            || self.peer.scheme != other.peer.scheme
-            || self.peer.sni != other.peer.sni
-        {
-            return false;
-        }
-
-        match (&self.peer._address, &other.peer._address) {
-            (SocketAddr::Inet(a), SocketAddr::Inet(b)) if a == b => {}
-            _ => return false,
-        }
-
-        let hash_proxy = |p: &Option<Proxy>| -> u64 {
-            let mut hasher = DefaultHasher::new();
-            p.hash(&mut hasher);
-            hasher.finish()
-        };
-
-        hash_proxy(&self.peer.proxy) == hash_proxy(&other.peer.proxy)
-    }
 }
 
 

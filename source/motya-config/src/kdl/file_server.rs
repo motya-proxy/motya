@@ -27,10 +27,10 @@ impl<'a> FileServerSection<'a> {
     fn extract_file_server(&self, node: &KdlDocument) -> miette::Result<FileServerConfig> {
         // Listeners
         //
-        let listeners = ListenersSection::new(self.doc).parse_node(node)?;
+        let listeners = ListenersSection::new(self.doc, self.name).parse_node(node)?;
         // Base Path
         //
-        let fs_node = utils::required_child_doc(self.doc, node, "file-server")?;
+        let fs_node = utils::required_child_doc(self.doc, node, "file-server", self.name)?;
         let data_nodes = utils::data_nodes(self.doc, fs_node)?;
         let mut map = HashMap::new();
         for (node, name, args) in data_nodes {
@@ -38,7 +38,7 @@ impl<'a> FileServerSection<'a> {
         }
 
         let base_path = if let Some((bpnode, bpargs)) = map.get("base-path") {
-            let val = utils::extract_one_str_arg(self.doc, bpnode, "base-path", bpargs, |a| {
+            let val = utils::extract_one_str_arg(self.doc, bpnode, "base-path", bpargs, self.name, |a| {
                 Some(a.to_string())
             })?;
             Some(val.into())

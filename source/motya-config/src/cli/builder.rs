@@ -1,3 +1,4 @@
+use crate::common_types::connectors::ALPN;
 use crate::internal::Config;
 use crate::{
     common_types::{
@@ -7,11 +8,10 @@ use crate::{
         listeners::{ListenerConfig, ListenerKind, Listeners},
         simple_response_type::SimpleResponseConfig,
     },
-    internal::{ProxyConfig, UpstreamOptions},
+    internal::ProxyConfig,
 };
 use http::{uri::PathAndQuery, StatusCode, Uri};
 use miette::IntoDiagnostic;
-use pingora::prelude::HttpPeer;
 use std::{net::ToSocketAddrs, str::FromStr};
 
 pub enum RouteAction {
@@ -104,10 +104,9 @@ impl CliConfigBuilder {
                         .next()
                         .ok_or_else(|| miette::miette!("Could not resolve address: {}", addr))?;
 
-                    let peer = HttpPeer::new(socket_addr, false, "".to_string());
-
                     UpstreamConfig::Service(HttpPeerConfig {
-                        peer,
+                        peer_address: socket_addr,
+                        alpn: ALPN::H1,
                         prefix_path,
                         target_path: uri.path().parse().into_diagnostic()?,
                         matcher: route.route_match.match_type,

@@ -19,7 +19,7 @@ pub trait UpstreamContextTrait {
     fn get_prefix_path(&self) -> &PathAndQuery;
     fn get_route_type(&self) -> RouteMatcher;
     fn get_balancer(&self) -> Option<&Balancer>;
-    fn get_peer(&self) -> Option<&HttpPeer>;
+    fn get_peer(&self) -> Option<HttpPeer>;
 }
 
 pub struct UpstreamRouter<TUpstream: UpstreamContextTrait> {
@@ -114,9 +114,9 @@ impl UpstreamContextTrait for UpstreamContext {
     // Only Service can return an HttpPeer. In the other two cases:
     // Static - handles the request during the request_filter stage.
     // MultiServer - processing is delegated to the load balancer.
-    fn get_peer(&self) -> Option<&HttpPeer> {
+    fn get_peer(&self) -> Option<HttpPeer> {
         match &self.upstream {
-            UpstreamConfig::Service(s) => Some(&s.peer),
+            UpstreamConfig::Service(s) => Some(HttpPeer::new(s.peer_address, false, "".to_string())),
             _ => None
         }
     }
@@ -144,8 +144,8 @@ pub mod tests {
         fn get_balancer(&self) -> Option<&Balancer> {
             None
         }
-        fn get_peer(&self) -> Option<&HttpPeer> {
-            Some(&self.peer)
+        fn get_peer(&self) -> Option<HttpPeer> {
+            Some(self.peer.clone())
         }
     }
 

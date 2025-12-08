@@ -8,6 +8,7 @@ use motya::app_context::AppContext;
 use motya_config::cli::cli_struct::Cli;
 
 const LB_CONFIG_TEMPLATE: &str = r#"
+system { }
 services {
     LoadBalancerTest {
         listeners {
@@ -15,11 +16,10 @@ services {
         }
         connectors {
         
-            load-balance {
-                selection "RoundRobin"
-            }
-            
             section "/" {
+                load-balance {
+                    selection "RoundRobin"
+                }
                 proxy {
                     server "__BACKEND_1__"
                     server "__BACKEND_2__"

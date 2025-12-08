@@ -5,17 +5,17 @@ use std::{
 };
 
 use http::uri::PathAndQuery;
-use motya::proxy::{
+use motya::{app_context::{pingora_opt, pingora_server_conf}, proxy::{
     filters::{chain_resolver::ChainResolver, generate_registry::load_registry},
     motya_proxy_service,
-};
+}};
 use pingora::{prelude::HttpPeer, server::Server};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use fqdn::fqdn;
 use motya_config::{
     common_types::{
-        connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig},
+        connectors::{ALPN, Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig},
         definitions::{ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         listeners::{ListenerConfig, ListenerKind, Listeners},
@@ -61,7 +61,8 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
                     chain: chain.clone(),
                 })],
                 upstream: UpstreamConfig::Service(HttpPeerConfig {
-                    peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
+                    peer_address: *mock_server.address(),
+                    alpn: ALPN::H1,
                     prefix_path: PathAndQuery::from_static("/"),
                     target_path: PathAndQuery::from_static("/"),
                     matcher: Default::default(),
@@ -82,7 +83,7 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
     };
 
     let mut app_server =
-        Server::new_with_opt_and_conf(config.pingora_opt(), config.pingora_server_conf());
+        Server::new_with_opt_and_conf(pingora_opt(&config), pingora_server_conf(&config));
 
     let (proxy_service, _) = motya_proxy_service(proxy, resolver, &app_server)
         .await
@@ -142,7 +143,8 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
                     chain: chain.clone(),
                 })],
                 upstream: UpstreamConfig::Service(HttpPeerConfig {
-                    peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
+                    peer_address: *mock_server.address(),
+                    alpn: ALPN::H1,
                     prefix_path: PathAndQuery::from_static("/"),
                     target_path: PathAndQuery::from_static("/"),
                     matcher: Default::default(),
@@ -163,7 +165,7 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
     };
 
     let mut app_server =
-        Server::new_with_opt_and_conf(config.pingora_opt(), config.pingora_server_conf());
+        Server::new_with_opt_and_conf(pingora_opt(&config), pingora_server_conf(&config));
 
     let (proxy_service, _) = motya_proxy_service(proxy, resolver, &app_server)
         .await

@@ -1,29 +1,31 @@
-use std::{collections::HashMap, convert::Infallible, path::PathBuf, time::Duration};
+use std::{collections::HashMap, convert::Infallible, marker::PhantomData, path::PathBuf, time::Duration};
 
 use futures_util::future::try_join_all;
 use miette::IntoDiagnostic;
 use notify::{Event, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
-use crate::proxy::{
-    upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter, SharedProxyState,
-};
+use crate::{fs_adapter::TokioFs, proxy::{
+    SharedProxyState, upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter
+}};
 use motya_config::{
-    builder::{ConfigLoader, FileConfigLoaderProvider},
-    common_types::definitions_table::DefinitionsTable,
-    internal::{Config, ProxyConfig},
+    common_types::definitions_table::DefinitionsTable, config_source::ConfigSource, internal::{Config, ProxyConfig}, kdl::fs_loader::FileCollector, loader::{ConfigLoader, FileConfigLoaderProvider}
 };
 
-pub struct ConfigWatcher<TConfigLoader: FileConfigLoaderProvider + Clone = ConfigLoader> {
+pub struct ConfigWatcher<
+    Cs: ConfigSource = FileCollector<TokioFs>,
+    TConfigLoader: FileConfigLoaderProvider + Clone = ConfigLoader<Cs>
+> {
     config: Config,
     table: DefinitionsTable,
     active_proxies: HashMap<String, SharedProxyState>,
     watch_entry_path: PathBuf,
     upstream_factory: UpstreamFactory,
     config_loader: TConfigLoader,
+    phantom: PhantomData<Cs>
 }
 
-impl<T: FileConfigLoaderProvider + Clone> ConfigWatcher<T> {
+impl<Cs: ConfigSource, T: FileConfigLoaderProvider + Clone> ConfigWatcher<Cs, T> {
     pub fn new(
         config: Config,
         table: DefinitionsTable,
@@ -38,6 +40,7 @@ impl<T: FileConfigLoaderProvider + Clone> ConfigWatcher<T> {
             upstream_factory,
             config_loader,
             active_proxies: HashMap::default(),
+            phantom: PhantomData
         }
     }
 
@@ -140,7 +143,6 @@ impl<T: FileConfigLoaderProvider + Clone> ConfigWatcher<T> {
 mod tests {
     use std::sync::Arc;
 
-    use async_trait::async_trait;
     use http::{uri::PathAndQuery, StatusCode};
     use miette::Result;
     use tempfile::env::temp_dir;
@@ -171,10 +173,9 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl FileConfigLoaderProvider for MockConfigLoader {
         async fn load_entry_point(
-            mut self,
+            self,
             _path: Option<PathBuf>,
             _defs: &mut DefinitionsTable,
         ) -> Result<Option<Config>> {
@@ -212,8 +213,8 @@ mod tests {
             .await
             .unwrap();
         let factory = UpstreamFactory::new(resolver);
-
-        let mut watcher = ConfigWatcher::new(
+                                    //dummy type
+        let mut watcher: ConfigWatcher<FileCollector<TokioFs>, MockConfigLoader> = ConfigWatcher::new(
             new_proxy_config.clone(),
             table.clone(),
             temp_dir(),

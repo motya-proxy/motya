@@ -44,7 +44,7 @@ impl UpstreamFactory {
             }
             else { None }
         };
-
+        
         let mut chains = Vec::new();
 
         for modificator in config.chains {

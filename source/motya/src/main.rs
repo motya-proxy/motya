@@ -1,6 +1,7 @@
 mod app_context;
 mod files;
 mod proxy;
+pub mod fs_adapter;
 
 use std::process;
 

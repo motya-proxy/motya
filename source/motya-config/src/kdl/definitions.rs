@@ -19,6 +19,7 @@ use crate::{
 
 pub struct DefinitionsSection<'a> {
     doc: &'a KdlDocument,
+    name: &'a str
 }
 
 impl SectionParser<KdlDocument, DefinitionsTable> for DefinitionsSection<'_> {
@@ -28,14 +29,14 @@ impl SectionParser<KdlDocument, DefinitionsTable> for DefinitionsSection<'_> {
 }
 
 impl<'a> DefinitionsSection<'a> {
-    pub fn new(doc: &'a KdlDocument) -> Self {
-        Self { doc }
+    pub fn new(doc: &'a KdlDocument, name: &'a str) -> Self {
+        Self { doc, name }
     }
 
     fn extract_definitions(&self, node: &KdlDocument) -> miette::Result<DefinitionsTable> {
         let mut table = DefinitionsTable::default();
 
-        let def_nodes = utils::wildcard_argless_child_docs(self.doc, node)?;
+        let def_nodes = utils::wildcard_argless_child_docs(self.doc, node, self.name)?;
         let definitions_blocks: Vec<&KdlDocument> = def_nodes
             .iter()
             .filter(|(name, _)| *name == "definitions")
@@ -70,7 +71,7 @@ impl<'a> DefinitionsSection<'a> {
             match name {
                 "namespace" => {
                     let ns_name =
-                        utils::extract_one_str_arg(self.doc, node, "namespace", args, |s| {
+                        utils::extract_one_str_arg(self.doc, node, "namespace", args, self.name, |s| {
                             Some(s.to_string())
                         })?;
                     self.parse_key_profile_namespace(table, node, &ns_name)?;
@@ -81,7 +82,7 @@ impl<'a> DefinitionsSection<'a> {
                         return Err(Bad::docspan(
                             format!("Duplicate key template: '{}'", name),
                             self.doc,
-                            &node.span(),
+                            &node.span(), self.name
                         )
                         .into());
                     }
@@ -91,7 +92,7 @@ impl<'a> DefinitionsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown directive in key-profiles: '{name}'"),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                     .into())
                 }
@@ -109,7 +110,7 @@ impl<'a> DefinitionsSection<'a> {
     ) -> miette::Result<()> {
         let children_doc = node
             .children()
-            .ok_or_else(|| Bad::docspan("namespace must have children", self.doc, &node.span()))?;
+            .ok_or_else(|| Bad::docspan("namespace must have children", self.doc, &node.span(), self.name))?;
 
         let nodes = utils::data_nodes(self.doc, children_doc)?;
 
@@ -117,7 +118,7 @@ impl<'a> DefinitionsSection<'a> {
             match name {
                 "namespace" => {
                     let sub_name =
-                        utils::extract_one_str_arg(self.doc, child_node, "namespace", args, |s| {
+                        utils::extract_one_str_arg(self.doc, child_node, "namespace", args, self.name, |s| {
                             Some(s.to_string())
                         })?;
                     let new_prefix = if prefix.is_empty() {
@@ -135,6 +136,7 @@ impl<'a> DefinitionsSection<'a> {
                             format!("Duplicate key template: '{}'", name),
                             self.doc,
                             &child_node.span(),
+                            self.name
                         )
                         .into());
                     }
@@ -145,6 +147,7 @@ impl<'a> DefinitionsSection<'a> {
                         format!("Unknown directive in key-profile namespace: '{name}'"),
                         self.doc,
                         &child_node.span(),
+                        self.name
                     )
                     .into())
                 }
@@ -161,7 +164,7 @@ impl<'a> DefinitionsSection<'a> {
         namespace_prefix: &str,
     ) -> miette::Result<(String, KeyTemplateConfig)> {
         let template_name =
-            utils::extract_one_str_arg(self.doc, node, "template", args, |s| Some(s.to_string()))?;
+            utils::extract_one_str_arg(self.doc, node, "template", args, self.name, |s| Some(s.to_string()))?;
 
         let full_name = if namespace_prefix.is_empty() {
             template_name
@@ -173,11 +176,11 @@ impl<'a> DefinitionsSection<'a> {
             Bad::docspan(
                 "template block must have children (e.g. { ... })",
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
         })?;
 
-        let key_template = KeyProfileParser::parse(self.doc, children)?;
+        let key_template = KeyProfileParser::new(self.name).parse(self.doc, children)?;
 
         Ok((full_name, key_template))
     }
@@ -192,28 +195,28 @@ impl<'a> DefinitionsSection<'a> {
             match name {
                 "namespace" => {
                     let ns_name =
-                        utils::extract_one_str_arg(self.doc, node, "namespace", args, |s| {
+                        utils::extract_one_str_arg(self.doc, node, "namespace", args, self.name, |s| {
                             Some(s.to_string())
                         })
                         .map_err(|_| {
                             Bad::docspan(
                                 "Expected a valid name string argument after 'namespace'",
                                 self.doc,
-                                &node.span(),
+                                &node.span(), self.name
                             )
                         })?;
                     self.parse_namespace_recursive(table, node, &ns_name)?;
                 }
                 "chain-filters" => {
                     let chain_name =
-                        utils::extract_one_str_arg(self.doc, node, "chain-filters", args, |s| {
+                        utils::extract_one_str_arg(self.doc, node, "chain-filters", args, self.name, |s| {
                             Some(s.to_string())
                         })
                         .map_err(|_| {
                             Bad::docspan(
                                 "Expected a valid name string argument after 'chain-filters'",
                                 self.doc,
-                                &node.span(),
+                                &node.span(), self.name
                             )
                         })?;
                     self.parse_chain(table, node, chain_name)?;
@@ -222,7 +225,7 @@ impl<'a> DefinitionsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown directive: '{name}'"),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                     .into())
                 }
@@ -244,6 +247,7 @@ impl<'a> DefinitionsSection<'a> {
                     format!("Expected 'plugin', found '{name}'"),
                     self.doc,
                     &plugin_node.span(),
+                    self.name
                 )
                 .into());
             }
@@ -254,7 +258,7 @@ impl<'a> DefinitionsSection<'a> {
                 return Err(Bad::docspan(
                     format!("Duplicate plugin definition: '{}'", plugin_def.name),
                     self.doc,
-                    &plugin_node.span(),
+                    &plugin_node.span(), self.name
                 )
                 .into());
             }
@@ -267,7 +271,7 @@ impl<'a> DefinitionsSection<'a> {
 
     fn parse_single_plugin(&self, node: &KdlNode) -> miette::Result<PluginDefinition> {
         let children = node.children().ok_or_else(|| {
-            Bad::docspan("plugin block must have children", self.doc, &node.span())
+            Bad::docspan("plugin block must have children", self.doc, &node.span(), self.name)
         })?;
 
         let nodes = utils::data_nodes(self.doc, children)?;
@@ -279,7 +283,7 @@ impl<'a> DefinitionsSection<'a> {
             match child_name {
                 "name" => {
                     let val =
-                        utils::extract_one_str_arg(self.doc, child_node, "name", args, |s| {
+                        utils::extract_one_str_arg(self.doc, child_node, "name", args, self.name, |s| {
                             Some(s.to_string())
                         })?;
                     name = Some(val);
@@ -289,15 +293,15 @@ impl<'a> DefinitionsSection<'a> {
                         return Err(Bad::docspan(
                             "Duplicate 'load' directive",
                             self.doc,
-                            &child_node.span(),
+                            &child_node.span(), self.name
                         )
                         .into());
                     }
 
-                    let args_map = utils::str_str_args(self.doc, args)?
+                    let args_map = utils::str_str_args(self.doc, args, self.name)?
                         .into_iter()
                         .collect::<HashMap<&str, &str>>()
-                        .ensure_only_keys(&["path", "url"], self.doc, child_node)?;
+                        .ensure_only_keys(&["path", "url"], self.doc, child_node, self.name)?;
 
                     if let Some(path) = args_map.get("path") {
                         source = Some(PluginSource::File(PathBuf::from(path)));
@@ -307,7 +311,7 @@ impl<'a> DefinitionsSection<'a> {
                         return Err(Bad::docspan(
                             "'load' must provide either 'path' or 'url'",
                             self.doc,
-                            &child_node.span(),
+                            &child_node.span(), self.name
                         )
                         .into());
                     }
@@ -316,7 +320,7 @@ impl<'a> DefinitionsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown plugin property: '{child_name}'"),
                         self.doc,
-                        &child_node.span(),
+                        &child_node.span(), self.name
                     )
                     .into());
                 }
@@ -325,20 +329,20 @@ impl<'a> DefinitionsSection<'a> {
 
         let name =
             FQDN::from_str(&name.ok_or_else(|| {
-                Bad::docspan("Plugin must have a 'name'", self.doc, &node.span())
+                Bad::docspan("Plugin must have a 'name'", self.doc, &node.span(), self.name)
             })?)
             .map_err(|err| {
                 Bad::docspan(
                     format!("Plugin name must be a valid FQDN, err: '{err}'"),
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
             })?;
         let source = source.ok_or_else(|| {
             Bad::docspan(
                 "Plugin must have a 'load' directive",
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
         })?;
 
@@ -353,7 +357,7 @@ impl<'a> DefinitionsSection<'a> {
     ) -> miette::Result<()> {
         let children_doc = node
             .children()
-            .ok_or_else(|| Bad::docspan("namespace must have children", self.doc, &node.span()))?;
+            .ok_or_else(|| Bad::docspan("namespace must have children", self.doc, &node.span(), self.name))?;
 
         let nodes = utils::data_nodes(self.doc, children_doc)?;
 
@@ -361,37 +365,37 @@ impl<'a> DefinitionsSection<'a> {
             match name {
                 "namespace" => {
                     let sub_name =
-                        utils::extract_one_str_arg(self.doc, child_node, "namespace", args, |s| {
+                        utils::extract_one_str_arg(self.doc, child_node, "namespace", args, self.name, |s| {
                             Some(s.to_string())
                         })?;
                     let new_prefix = format!("{}.{}", prefix, sub_name);
                     self.parse_namespace_recursive(table, child_node, &new_prefix)?;
                 }
                 "def" => {
-                    let def_name = utils::str_str_args(self.doc, args)?
+                    let def_name = utils::str_str_args(self.doc, args, self.name)?
                         .into_iter()
                         .collect::<HashMap<&str, &str>>()
-                        .ensure_only_keys(&["name"], self.doc, child_node)?
+                        .ensure_only_keys(&["name"], self.doc, child_node, self.name)?
                         .get("name")
                         .ok_or_else(|| {
                             Bad::docspan(
                                 "def requires 'name' argument",
                                 self.doc,
-                                &child_node.span(),
+                                &child_node.span(), self.name
                             )
                         })?
                         .to_string();
 
                     let fqdn = FQDN::from_str(&format!("{}.{}", prefix, def_name))
                         .map_err(|err|
-                            Bad::docspan(format!("prefix('{prefix}') or def name('{def_name}') not valid FQDN, err: '{err}'"), self.doc, &child_node.span())
+                            Bad::docspan(format!("prefix('{prefix}') or def name('{def_name}') not valid FQDN, err: '{err}'"), self.doc, &child_node.span(), self.name)
                         )?;
 
                     if !table.insert_filter(fqdn.clone()) {
                         return Err(Bad::docspan(
                             format!("Duplicate filter definition: '{}'", fqdn),
                             self.doc,
-                            &child_node.span(),
+                            &child_node.span(), self.name
                         )
                         .into());
                     }
@@ -400,7 +404,7 @@ impl<'a> DefinitionsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown directive in namespace: '{name}'. Expected 'namespace' or 'def'"),
                         self.doc,
-                        &child_node.span(),
+                        &child_node.span(), self.name
                     )
                     .into());
                 }
@@ -420,16 +424,16 @@ impl<'a> DefinitionsSection<'a> {
             return Err(Bad::docspan(
                 format!("Duplicate chain-filters name: '{}'", chain_name),
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
             .into());
         }
 
         let children_doc = node.children().ok_or_else(|| {
-            Bad::docspan("chain-filters must have children", self.doc, &node.span())
+            Bad::docspan("chain-filters must have children", self.doc, &node.span(), self.name)
         })?;
 
-        let chain = ChainParser::parse(self.doc, children_doc)?;
+        let chain = ChainParser::new(self.name).parse(self.doc, children_doc)?;
 
         table.insert_chain(chain_name, chain);
 
@@ -455,7 +459,7 @@ mod tests {
     #[test]
     fn test_minimal_valid_profile() {
         let doc: KdlDocument = VALID_BASIC_PROFILE.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser
             .parse_node(&doc)
             .expect("Should parse minimal profile");
@@ -484,7 +488,7 @@ mod tests {
     #[test]
     fn test_missing_key_required() {
         let doc: KdlDocument = MISSING_KEY_PROFILE.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         assert!(result.is_err());
@@ -506,7 +510,7 @@ mod tests {
     #[test]
     fn test_key_cannot_be_empty() {
         let doc: KdlDocument = EMPTY_KEY_PROFILE.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser
             .parse_node(&doc)
             .expect("Should parse even with empty key");
@@ -529,7 +533,7 @@ mod tests {
     #[test]
     fn test_key_with_fallback_and_algorithm() {
         let doc: KdlDocument = KEY_WITH_FALLBACK.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         let key_template = table.get_key_templates().get("with-fallback").unwrap();
@@ -553,7 +557,7 @@ mod tests {
     #[test]
     fn test_algorithm_requires_name_param() {
         let doc: KdlDocument = ALGORITHM_NAME_REQUIRED.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         let table = result.expect("Should use default algorithm");
@@ -575,7 +579,7 @@ mod tests {
     #[test]
     fn test_algorithm_with_seed_but_no_name() {
         let doc: KdlDocument = ALGORITHM_WITH_SEED_ONLY.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         let key_template = table.get_key_templates().get("seed-only").unwrap();
@@ -598,7 +602,7 @@ mod tests {
     #[test]
     fn test_transforms_order_can_be_empty() {
         let doc: KdlDocument = TRANSFORMS_ORDER_EMPTY.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         let key_template = table.get_key_templates().get("empty-transforms").unwrap();
@@ -623,7 +627,7 @@ mod tests {
     #[test]
     fn test_transforms_order_parsing() {
         let doc: KdlDocument = TRANSFORMS_ORDER_WITH_STEPS.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         let key_template = table.get_key_templates().get("with-transforms").unwrap();
@@ -662,7 +666,7 @@ mod tests {
     #[test]
     fn test_duplicate_template_name_error() {
         let doc: KdlDocument = DUPLICATE_TEMPLATE_NAME.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         assert!(result.is_err());
@@ -691,7 +695,7 @@ mod tests {
     #[test]
     fn test_namespaced_templates() {
         let doc: KdlDocument = NAMESPACED_TEMPLATES.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         assert!(table.get_key_templates().contains_key("motya.session"));
@@ -745,7 +749,7 @@ mod tests {
     #[test]
     fn test_parse_key_profiles() {
         let doc: KdlDocument = KEY_PROFILES_TEST.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).expect("Parsing failed");
 
         assert_eq!(table.get_key_templates().len(), 3);
@@ -798,7 +802,7 @@ mod tests {
     #[test]
     fn test_duplicate_key_profile_error() {
         let doc: KdlDocument = DUPLICATE_KEY_PROFILE.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         assert!(result.is_err());
@@ -829,7 +833,7 @@ mod tests {
     #[test]
     fn test_parse_plugins() {
         let doc: KdlDocument = PLUGINS_CONFIG.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).expect("Parsing failed");
 
         assert_eq!(table.get_plugins().len(), 2);
@@ -869,7 +873,7 @@ mod tests {
     #[test]
     fn test_plugin_missing_load() {
         let doc: KdlDocument = INVALID_PLUGIN_NO_LOAD.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let res = parser.parse_node(&doc);
 
         assert!(res.is_err());
@@ -895,7 +899,7 @@ mod tests {
     #[test]
     fn test_plugin_bad_load_key() {
         let doc: KdlDocument = INVALID_PLUGIN_BAD_LOAD.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let res = parser.parse_node(&doc);
 
         assert!(res.is_err());
@@ -927,7 +931,7 @@ mod tests {
     #[test]
     fn test_duplicate_chain() {
         let doc: KdlDocument = DUPLICATE_CHAIN_TEST.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         assert!(result.is_err());
@@ -963,7 +967,7 @@ mod tests {
     #[test]
     fn test_namespace_merge() {
         let doc: KdlDocument = NAMESPACE_MERGE_TEST.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let table = parser.parse_node(&doc).unwrap();
 
         assert!(table
@@ -988,7 +992,7 @@ mod tests {
     #[test]
     fn test_duplicate_def() {
         let doc: KdlDocument = DUPLICATE_DEF_TEST.parse().unwrap();
-        let parser = DefinitionsSection::new(&doc);
+        let parser = DefinitionsSection::new(&doc, "test");
         let result = parser.parse_node(&doc);
 
         assert!(result.is_err());

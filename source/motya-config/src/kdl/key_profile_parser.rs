@@ -8,10 +8,17 @@ use crate::common_types::{
 };
 use crate::kdl::utils::{self, HashMapValidationExt};
 
-pub struct KeyProfileParser;
+pub struct KeyProfileParser<'a> {
+    name: &'a str
+}
 
-impl KeyProfileParser {
-    pub fn parse(doc: &KdlDocument, node: &KdlDocument) -> miette::Result<KeyTemplateConfig> {
+
+impl<'a> KeyProfileParser<'a> {
+    pub fn new(name: &'a str) -> Self {
+        Self { name }
+    }
+
+    pub fn parse(&self, doc: &KdlDocument, node: &KdlDocument) -> miette::Result<KeyTemplateConfig> {
         let mut key_source: Option<String> = None;
         let mut fallback: Option<String> = None;
         let mut algorithm: Option<HashAlgorithm> = None;
@@ -21,21 +28,21 @@ impl KeyProfileParser {
         for (child_node, name, args) in nodes {
             match name {
                 "key" => {
-                    let (source, fb) = Self::parse_key_directive(doc, child_node, args)?;
+                    let (source, fb) = self.parse_key_directive(doc, child_node, args)?;
                     key_source = Some(source);
                     fallback = fb;
                 }
                 "algorithm" => {
-                    algorithm = Some(Self::parse_algorithm_directive(doc, child_node, args)?);
+                    algorithm = Some(self.parse_algorithm_directive(doc, child_node, args)?);
                 }
                 "transforms-order" => {
-                    transforms = Self::parse_transforms_order(doc, child_node)?;
+                    transforms = self.parse_transforms_order(doc, child_node)?;
                 }
                 _ => {
                     return Err(Bad::docspan(
                         format!("Unknown directive in key profile: '{name}'"),
                         doc,
-                        &child_node.span(),
+                        &child_node.span(), self.name
                     )
                     .into())
                 }
@@ -43,7 +50,7 @@ impl KeyProfileParser {
         }
 
         let key_source = key_source.ok_or_else(|| {
-            Bad::docspan("Key profile must have 'key' directive", doc, &node.span())
+            Bad::docspan("Key profile must have 'key' directive", doc, &node.span(), self.name)
         })?;
 
         let algorithm = algorithm.unwrap_or_else(|| HashAlgorithm {
@@ -60,27 +67,28 @@ impl KeyProfileParser {
     }
 
     fn parse_key_directive(
+        &self, 
         doc: &KdlDocument,
         node: &KdlNode,
         args: &[KdlEntry],
     ) -> miette::Result<(String, Option<String>)> {
         let named_args = &args[1..];
 
-        let args_map = utils::str_str_args(doc, named_args)?
+        let args_map = utils::str_str_args(doc, named_args, self.name)?
             .into_iter()
             .collect::<HashMap<&str, &str>>()
-            .ensure_only_keys(&["fallback"], doc, node)?;
+            .ensure_only_keys(&["fallback"], doc, node, self.name)?;
 
         let source = if let Some(entry) = args.first() {
             entry
                 .value()
                 .as_string()
                 .ok_or_else(|| {
-                    Bad::docspan("key directive requires a string value", doc, &entry.span())
+                    Bad::docspan("key directive requires a string value", doc, &entry.span(), self.name)
                 })?
                 .to_string()
         } else {
-            return Err(Bad::docspan("key directive requires a value", doc, &node.span()).into());
+            return Err(Bad::docspan("key directive requires a value", doc, &node.span(), self.name).into());
         };
 
         let fallback = args_map.get("fallback").map(|s| s.to_string());
@@ -89,14 +97,15 @@ impl KeyProfileParser {
     }
 
     fn parse_algorithm_directive(
+        &self, 
         doc: &KdlDocument,
         node: &KdlNode,
         args: &[KdlEntry],
     ) -> miette::Result<HashAlgorithm> {
-        let args_map = utils::str_str_args(doc, args)?
+        let args_map = utils::str_str_args(doc, args, self.name)?
             .into_iter()
             .collect::<HashMap<&str, &str>>()
-            .ensure_only_keys(&["name", "seed"], doc, node)?;
+            .ensure_only_keys(&["name", "seed"], doc, node, self.name)?;
 
         let name = args_map
             .get("name")
@@ -108,16 +117,16 @@ impl KeyProfileParser {
         Ok(HashAlgorithm { name, seed })
     }
 
-    fn parse_transforms_order(doc: &KdlDocument, node: &KdlNode) -> miette::Result<Vec<Transform>> {
+    fn parse_transforms_order(&self, doc: &KdlDocument, node: &KdlNode) -> miette::Result<Vec<Transform>> {
         let children_doc = node.children().ok_or_else(|| {
-            Bad::docspan("transforms-order must have children", doc, &node.span())
+            Bad::docspan("transforms-order must have children", doc, &node.span(), self.name)
         })?;
 
         let mut transforms = Vec::new();
         let nodes = utils::data_nodes(doc, children_doc)?;
 
         for (_, name, args) in nodes {
-            let params = utils::str_str_args(doc, args)?
+            let params = utils::str_str_args(doc, args, self.name)?
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
@@ -151,7 +160,7 @@ mod tests {
 
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let template = KeyProfileParser::parse(&doc, &doc).expect("Should parse");
+        let template = KeyProfileParser::new("test").parse(&doc, &doc).expect("Should parse");
 
         assert_eq!(template.source, "${cookie_session}");
         assert_eq!(
@@ -176,7 +185,7 @@ mod tests {
         let kdl_input = r#"key "${uri_path}""#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let template = KeyProfileParser::parse(&doc, &doc).unwrap();
+        let template = KeyProfileParser::new("test").parse(&doc, &doc).unwrap();
 
         assert_eq!(template.source, "${uri_path}");
         assert!(template.fallback.is_none());
@@ -190,7 +199,7 @@ mod tests {
         let kdl_input = r#"algorithm name="xxhash32""#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let result = KeyProfileParser::parse(&doc, &doc);
+        let result = KeyProfileParser::new("test").parse(&doc, &doc);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()

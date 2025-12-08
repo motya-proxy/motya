@@ -12,25 +12,25 @@ use wiremock::matchers::any;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const KETAMA_CONFIG_TEMPLATE: &str = r#"
+system { }
 services {
     KetamaService {
         listeners {
             "127.0.0.1:__PROXY_PORT__"
         }
         connectors {
-            load-balance {
-                selection "Ketama" {
-                    key "${header-x-part-one}-${header-x-part-two}"
-                    
-                    algorithm name="xxhash64"
+            section "/" {
+                load-balance {
+                    selection "Ketama" {
+                        key "${header-x-part-one}-${header-x-part-two}"
+                        
+                        algorithm name="xxhash64"
 
-                    transforms-order {
-                        lowercase
+                        transforms-order {
+                            lowercase
+                        }
                     }
                 }
-            }
-            
-            section "/" {
                 proxy {
                     server "__BACKEND_1__"
                     server "__BACKEND_2__"

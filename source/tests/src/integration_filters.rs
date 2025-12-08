@@ -1,10 +1,12 @@
+use motya::app_context::{pingora_opt, pingora_server_conf};
+use motya::fs_adapter::TokioFs;
 use motya::proxy::filters::chain_resolver::ChainResolver;
 use motya::proxy::filters::generate_registry::load_registry;
 use motya::proxy::motya_proxy_service;
-use motya_config::builder::ConfigLoader;
-use motya_config::builder::FileConfigLoaderProvider;
 use motya_config::common_types::definitions_table::DefinitionsTable;
 use motya_config::internal::Config;
+use motya_config::kdl::fs_loader::FileCollector;
+use motya_config::loader::{ConfigLoader, FileConfigLoaderProvider};
 use pingora::server::Server;
 use reqwest::Client;
 use std::io::Write;
@@ -17,6 +19,7 @@ use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const TEST_CONFIG: &str = r#"
+    system { }
     definitions {
         modifiers {
             chain-filters "filter-a" {
@@ -72,7 +75,7 @@ async fn start_server_from_config_path(config_path: &std::path::Path) -> thread:
 
     let conf = Config::default();
 
-    let loader = ConfigLoader::default();
+    let loader = ConfigLoader::new(FileCollector::<TokioFs>::default());
 
     let config = loader
         .load_entry_point(Some(config_path.to_path_buf()), &mut definitions_table)
@@ -87,7 +90,7 @@ async fn start_server_from_config_path(config_path: &std::path::Path) -> thread:
     let proxy = config.basic_proxies.first().cloned().unwrap();
 
     let mut app_server =
-        Server::new_with_opt_and_conf(conf.pingora_opt(), conf.pingora_server_conf());
+        Server::new_with_opt_and_conf(pingora_opt(&conf), pingora_server_conf(&conf));
     let (proxy_service, _) = motya_proxy_service(proxy, resolver, &app_server)
         .await
         .unwrap();

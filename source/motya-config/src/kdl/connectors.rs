@@ -1,13 +1,10 @@
 use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::atomic::{AtomicUsize, Ordering},
+    collections::HashMap, net::SocketAddr, str::FromStr, sync::atomic::{AtomicUsize, Ordering}
 };
 
 use http::{uri::PathAndQuery, StatusCode, Uri};
 use kdl::{KdlDocument, KdlEntry, KdlNode};
 use miette::SourceSpan;
-use pingora::{prelude::HttpPeer, protocols::l4::socket::SocketAddr};
 
 use crate::{
     common_types::{
@@ -32,6 +29,7 @@ use crate::{
 pub struct ConnectorsSection<'a> {
     table: &'a DefinitionsTable,
     doc: &'a KdlDocument,
+    name: &'a str,
     anon_counter: AtomicUsize,
 }
 
@@ -45,7 +43,7 @@ impl SectionParser<KdlDocument, Connectors> for ConnectorsSection<'_> {
 
         if upstreams.is_empty() {
             return Err(
-                Bad::docspan("We require at least one connector", self.doc, &node.span()).into(),
+                Bad::docspan("We require at least one connector", self.doc, &node.span(), self.name).into(),
             );
         }
 
@@ -57,10 +55,11 @@ impl SectionParser<KdlDocument, Connectors> for ConnectorsSection<'_> {
 }
 
 impl<'a> ConnectorsSection<'a> {
-    pub fn new(doc: &'a KdlDocument, table: &'a DefinitionsTable) -> Self {
+    pub fn new(doc: &'a KdlDocument, table: &'a DefinitionsTable, name: &'a str) -> Self {
         Self {
             table,
             doc,
+            name,
             anon_counter: AtomicUsize::new(0),
         }
     }
@@ -70,7 +69,7 @@ impl<'a> ConnectorsSection<'a> {
         node: &KdlDocument,
         anonymous_definitions: &mut DefinitionsTable,
     ) -> miette::Result<Vec<ConnectorsLeaf>> {
-        let conn_node = utils::required_child_doc(self.doc, node, "connectors")?;
+        let conn_node = utils::required_child_doc(self.doc, node, "connectors", self.name)?;
 
         self.process_nodes_recursive(
             conn_node,
@@ -100,7 +99,7 @@ impl<'a> ConnectorsSection<'a> {
                         return Err(Bad::docspan(
                             format!("Directive '{name}' conflicts with previously defined '{prev_name}' in this section"), 
                             self.doc,
-                            &node.span()
+                            &node.span(), self.name
                         ).into());
                     }
 
@@ -120,7 +119,7 @@ impl<'a> ConnectorsSection<'a> {
                         return Err(Bad::docspan(
                             "Duplicate 'load-balance' directive",
                             self.doc,
-                            &node.span(),
+                            &node.span(), self.name
                         )
                         .into());
                     }
@@ -143,7 +142,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown directive: {unknown}"),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                     .into())
                 }
@@ -165,14 +164,14 @@ impl<'a> ConnectorsSection<'a> {
         //named use-chain
         if let Some(arg) = args.first() {
             let name = arg.value().as_string().ok_or_else(|| {
-                Bad::docspan("Chain reference must be a string", self.doc, &arg.span())
+                Bad::docspan("Chain reference must be a string", self.doc, &arg.span(), self.name)
             })?;
 
             if node.children().is_some() {
                 return Err(Bad::docspan(
                     "use-chain cannot have both a name argument and a code block. Choose one.",
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
                 .into());
             }
@@ -181,7 +180,7 @@ impl<'a> ConnectorsSection<'a> {
                 Bad::docspan(
                     format!("Chain '{}' not found in definitions", name),
                     self.doc,
-                    &arg.span(),
+                    &arg.span(), self.name,
                 )
             })?;
 
@@ -195,7 +194,7 @@ impl<'a> ConnectorsSection<'a> {
 
         //anonymous use-chain
         if let Some(children) = node.children() {
-            let chain = ChainParser::parse(self.doc, children)?;
+            let chain = ChainParser::new(self.name).parse(self.doc, children)?;
 
             let id = self.anon_counter.fetch_add(1, Ordering::Relaxed);
             let path_slug = path.path().replace('/', "_");
@@ -214,7 +213,7 @@ impl<'a> ConnectorsSection<'a> {
         Err(Bad::docspan(
             "use-chain requires either a name argument or a block of filters",
             self.doc,
-            &node.span(),
+            &node.span(), self.name
         )
         .into())
     }
@@ -234,7 +233,7 @@ impl<'a> ConnectorsSection<'a> {
                 Bad::docspan(
                     "Section node requires a path argument",
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
             })?;
 
@@ -242,7 +241,7 @@ impl<'a> ConnectorsSection<'a> {
             Bad::docspan(
                 "Section path argument must be a string",
                 self.doc,
-                &path_arg.span(),
+                &path_arg.span(), self.name,
             )
         })?;
 
@@ -258,7 +257,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown routing mode '{other}'. Use 'prefix' or 'exact'"),
                         self.doc,
-                        &entry.span(),
+                        &entry.span(), self.name,
                     )
                     .into())
                 }
@@ -266,7 +265,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         "Routing mode must be a string",
                         self.doc,
-                        &entry.span(),
+                        &entry.span(), self.name,
                     )
                     .into())
                 }
@@ -276,7 +275,7 @@ impl<'a> ConnectorsSection<'a> {
         };
 
         let children_doc = node.children().ok_or_else(|| {
-            Bad::docspan("Section node must have children", self.doc, &node.span())
+            Bad::docspan("Section node must have children", self.doc, &node.span(), self.name)
         })?;
 
         if next_matcher == RouteMatcher::Exact {
@@ -285,7 +284,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         "A section with 'exact' routing mode cannot contain nested sections.",
                         self.doc,
-                        &child.span(),
+                        &child.span(), self.name,
                     )
                     .into());
                 }
@@ -310,7 +309,7 @@ impl<'a> ConnectorsSection<'a> {
             Bad::docspan(
                 format!("Bad path: {full_path}, error: {err}"),
                 self.doc,
-                &path_arg.span(),
+                &path_arg.span(), self.name,
             )
         })?;
 
@@ -328,19 +327,19 @@ impl<'a> ConnectorsSection<'a> {
         args: &[KdlEntry],
         base_path: PathAndQuery,
     ) -> miette::Result<ConnectorsLeaf> {
-        let args = utils::str_str_args(self.doc, args)
+        let args = utils::str_str_args(self.doc, args, self.name)
             .map_err(|err| {
                 Bad::docspan(
                     format!(
                         "The return directive must have code and response keys, error: '{err}'"
                     ),
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
             })?
             .into_iter()
             .collect::<HashMap<&str, &str>>()
-            .ensure_only_keys(&["code", "response"], self.doc, node)?;
+            .ensure_only_keys(&["code", "response"], self.doc, node, self.name)?;
 
         let http_code_raw = args.get("code").unwrap_or(&"200");
         let response = args.get("response").unwrap_or(&"");
@@ -349,7 +348,7 @@ impl<'a> ConnectorsSection<'a> {
             Bad::docspan(
                 format!("Not a valid http code, reason: '{err}'"),
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
         })?;
 
@@ -374,7 +373,7 @@ impl<'a> ConnectorsSection<'a> {
                 return Err(Bad::docspan(
                     "The block-style 'proxy' cannot have arguments (like address) on the main node.",
                     self.doc,
-                    &args[0].span(),
+                    &args[0].span(), self.name,
                 ).into());
             }
 
@@ -383,9 +382,9 @@ impl<'a> ConnectorsSection<'a> {
             let mut common_options = HashMap::new();
 
             let parse_block_option = |common_options: &HashMap<&str, String>,
-                                      child_node: &KdlNode,
-                                      name: &str,
-                                      child_args: &[KdlEntry]|
+                child_node: &KdlNode,
+                name: &str,
+                child_args: &[KdlEntry]|
              -> miette::Result<String> {
                 let value_entry =
                     child_args
@@ -395,7 +394,7 @@ impl<'a> ConnectorsSection<'a> {
                             Bad::docspan(
                                 format!("'{name}' requires a value argument"),
                                 self.doc,
-                                &child_node.span(),
+                                &child_node.span(), self.name,
                             )
                         })?;
 
@@ -403,7 +402,7 @@ impl<'a> ConnectorsSection<'a> {
                     Bad::docspan(
                         format!("'{name}' value must be a string"),
                         self.doc,
-                        &value_entry.span(),
+                        &value_entry.span(), self.name,
                     )
                 })?;
 
@@ -411,7 +410,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Duplicate '{name}' directive in proxy block"),
                         self.doc,
-                        &child_node.span(),
+                        &child_node.span(), self.name,
                     )
                     .into());
                 }
@@ -428,7 +427,7 @@ impl<'a> ConnectorsSection<'a> {
                                 Bad::docspan(
                                     "server node requires an address argument",
                                     self.doc,
-                                    &child_node.span(),
+                                    &child_node.span(), self.name,
                                 )
                             })?;
 
@@ -436,7 +435,7 @@ impl<'a> ConnectorsSection<'a> {
                             Bad::docspan(
                                 "server address must be a string",
                                 self.doc,
-                                &addr_entry.span(),
+                                &addr_entry.span(), self.name,
                             )
                         })?;
 
@@ -445,7 +444,7 @@ impl<'a> ConnectorsSection<'a> {
                                 Bad::docspan(
                                     format!("Invalid server address '{addr_str}': {err}"),
                                     self.doc,
-                                    &addr_entry.span(),
+                                    &addr_entry.span(), self.name,
                                 )
                             })?;
 
@@ -458,7 +457,7 @@ impl<'a> ConnectorsSection<'a> {
                                 Bad::docspan(
                                     "server weight must be an integer",
                                     self.doc,
-                                    &entry.span(),
+                                    &entry.span(), self.name,
                                 )
                             })? as usize,
                             None => 1,
@@ -480,7 +479,7 @@ impl<'a> ConnectorsSection<'a> {
                         return Err(Bad::docspan(
                             format!("Unknown directive in proxy block: {unknown}"),
                             self.doc,
-                            &child_node.span(),
+                            &child_node.span(), self.name,
                         )
                         .into())
                     }
@@ -491,7 +490,7 @@ impl<'a> ConnectorsSection<'a> {
                 return Err(Bad::docspan(
                     "Proxy block must contain at least one 'server' directive",
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
                 .into());
             }
@@ -506,7 +505,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         "'tls-sni' is required for HTTP2 support in proxy block",
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                     .into());
                 }
@@ -531,20 +530,20 @@ impl<'a> ConnectorsSection<'a> {
             Bad::docspan(
                 "Connector node must provide an address or a block",
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )
         })?;
 
         let named_args = &args[1..];
 
-        let args = utils::str_str_args(self.doc, named_args)?
+        let args = utils::str_str_args(self.doc, named_args, self.name)?
             .into_iter()
             .map(|(k, v)| (k, v.to_string()))
             .collect::<HashMap<&str, String>>()
-            .ensure_only_keys(&["tls-sni", "proto"], self.doc, node)?;
+            .ensure_only_keys(&["tls-sni", "proto"], self.doc, node, self.name)?;
 
         let Some(Ok(uri)) = first_arg.value().as_string().map(str::parse::<Uri>) else {
-            return Err(Bad::docspan("Not a valid url", self.doc, &node.span()).into());
+            return Err(Bad::docspan("Not a valid url", self.doc, &node.span(), self.name).into());
         };
 
         let Some(Ok(host_addr)) = uri
@@ -552,7 +551,7 @@ impl<'a> ConnectorsSection<'a> {
             .and_then(|host| uri.port().map(|port| format!("{host}:{port}")))
             .map(|str| str::parse::<SocketAddr>(&str))
         else {
-            return Err(Bad::docspan("Not a valid host address", self.doc, &node.span()).into());
+            return Err(Bad::docspan("Not a valid host address", self.doc, &node.span(), self.name).into());
         };
 
         let proto = self.extract_proto(node, &args)?;
@@ -566,19 +565,17 @@ impl<'a> ConnectorsSection<'a> {
                 return Err(Bad::docspan(
                     "'tls-sni' is required for HTTP2 support",
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
                 .into());
             }
             (Some(p), Some(sni)) => (true, sni.to_string(), p),
         };
 
-        let mut peer = HttpPeer::new(host_addr, tls, sni);
-        peer.options.alpn = alpn.into();
-
         Ok(ConnectorsLeaf::Upstream(UpstreamConfig::Service(
             HttpPeerConfig {
-                peer,
+                peer_address: host_addr,
+                alpn,
                 prefix_path: base_path,
                 target_path: uri
                     .path()
@@ -597,7 +594,7 @@ impl<'a> ConnectorsSection<'a> {
         let proto = match args.get("proto") {
             None => None,
             Some(value) => parse_proto_value(value).map_err(|msg| {
-                Bad::docspan(format!("{msg}, found '{value}'"), self.doc, &node.span())
+                Bad::docspan(format!("{msg}, found '{value}'"), self.doc, &node.span(), self.name)
             })?,
         };
         Ok(proto)
@@ -613,7 +610,7 @@ impl<'a> ConnectorsSection<'a> {
             node.children().or_bail(
                 "'load-balance' should have children",
                 self.doc,
-                &node.span(),
+                &node.span(), self.name
             )?,
         )?;
 
@@ -635,6 +632,7 @@ impl<'a> ConnectorsSection<'a> {
                         node,
                         name,
                         args,
+                        self.name,
                         |val| match val {
                             "None" => Some(HealthCheckKind::None),
                             _ => None,
@@ -647,6 +645,7 @@ impl<'a> ConnectorsSection<'a> {
                         node,
                         name,
                         args,
+                        self.name,
                         |val| match val {
                             "Static" => Some(DiscoveryKind::Static),
                             _ => None,
@@ -657,7 +656,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         format!("Unknown setting: '{other}'"),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     )
                     .into());
                 }
@@ -678,7 +677,7 @@ impl<'a> ConnectorsSection<'a> {
         anonymous_definitions: &mut DefinitionsTable,
     ) -> miette::Result<(SelectionKind, Option<KeyTemplateConfig>)> {
         let (selection_kind, kv_args) =
-            utils::extract_one_str_arg_with_kv_args(self.doc, node, "selection", args, |val| {
+            utils::extract_one_str_arg_with_kv_args(self.doc, node, "selection", args, self.name, |val| {
                 match val {
                     "RoundRobin" => Some(SelectionKind::RoundRobin),
                     "Random" => Some(SelectionKind::Random),
@@ -695,12 +694,12 @@ impl<'a> ConnectorsSection<'a> {
                 return Err(Bad::docspan(
                     format!("Key profile '{}' not found", template_name),
                     self.doc,
-                    &node.span(),
+                    &node.span(), self.name
                 )
                 .into());
             }
         } else if let Some(nodes) = node.children() {
-            let template = KeyProfileParser::parse(self.doc, nodes)?;
+            let template = KeyProfileParser::new(self.name).parse(self.doc, nodes)?;
             let id = self.anon_counter.fetch_add(1, Ordering::Relaxed);
             let generated_name = format!("__anon_key_{id}");
 
@@ -713,7 +712,7 @@ impl<'a> ConnectorsSection<'a> {
                     return Err(Bad::docspan(
                         format!("selection '{:?}' requires a key source. Use 'use-key-profile' or inline key configuration.", selection_kind),
                         self.doc,
-                        &node.span(),
+                        &node.span(), self.name
                     ).into());
                 }
                 _ => None,
@@ -799,10 +798,10 @@ mod tests {
     fn parse_config(input: &str) -> miette::Result<Connectors> {
         let doc: KdlDocument = input.parse().unwrap();
 
-        let def_parser = DefinitionsSection::new(&doc);
+        let def_parser = DefinitionsSection::new(&doc, "test");
         let table = def_parser.parse_node(&doc)?;
 
-        let conn_parser = ConnectorsSection::new(&doc, &table);
+        let conn_parser = ConnectorsSection::new(&doc, &table, "test");
         conn_parser.parse_node(&doc)
     }
 
@@ -1378,7 +1377,7 @@ mod tests {
     fn connectors_with_nested_sections() {
         let doc: KdlDocument = CONNECTORS_NESTED_SECTIONS.parse().unwrap();
         let table = DefinitionsTable::default();
-        let section = ConnectorsSection::new(&doc, &table);
+        let section = ConnectorsSection::new(&doc, &table, "test");
         let mut anon = DefinitionsTable::default();
 
         let nodes = section.parse_connections_node(&doc, &mut anon).unwrap();
@@ -1424,7 +1423,7 @@ mod tests {
     fn service_section_with_path() {
         let doc: KdlDocument = CONNECTORS_SECTION_WITH_PATH.parse().unwrap();
         let table = DefinitionsTable::default();
-        let section = ConnectorsSection::new(&doc, &table);
+        let section = ConnectorsSection::new(&doc, &table, "test");
 
         let mut anon = DefinitionsTable::default();
         let ConnectorsLeaf::Section(simple) =
@@ -1453,7 +1452,7 @@ mod tests {
     fn service_section() {
         let doc: KdlDocument = CONNECTORS_SECTION.parse().unwrap();
         let table = DefinitionsTable::default();
-        let section = ConnectorsSection::new(&doc, &table);
+        let section = ConnectorsSection::new(&doc, &table, "test");
 
         let mut anon = DefinitionsTable::default();
         let ConnectorsLeaf::Section(simple) =
@@ -1467,8 +1466,8 @@ mod tests {
         };
 
         assert_eq!(
-            s.peer._address,
-            SocketAddr::Inet(std::net::SocketAddr::V4("0.0.0.0:8000".parse().unwrap()))
+            s.peer_address,
+            SocketAddr::V4("0.0.0.0:8000".parse().unwrap())
         );
     }
 
@@ -1482,15 +1481,15 @@ mod tests {
     fn service_proxy() {
         let doc: KdlDocument = CONNECTORS_PROXY.parse().unwrap();
         let table = DefinitionsTable::default();
-        let section = ConnectorsSection::new(&doc, &table);
+        let section = ConnectorsSection::new(&doc, &table, "test");
 
         let mut anon = DefinitionsTable::default();
         let simple = &section.parse_connections_node(&doc, &mut anon).unwrap()[0];
 
         if let ConnectorsLeaf::Upstream(UpstreamConfig::Service(s)) = simple {
             assert_eq!(
-                s.peer._address,
-                SocketAddr::Inet(std::net::SocketAddr::V4("0.0.0.0:8000".parse().unwrap()))
+                s.peer_address,
+                SocketAddr::V4("0.0.0.0:8000".parse().unwrap())
             )
         } else {
             panic!("Expected Service variant, got");
@@ -1507,7 +1506,7 @@ mod tests {
     fn service_return_simple_response() {
         let doc: KdlDocument = CONNECTORS_RETURN_SIMPLE_RESPONSE.parse().unwrap();
         let table = DefinitionsTable::default();
-        let section = ConnectorsSection::new(&doc, &table);
+        let section = ConnectorsSection::new(&doc, &table, "test");
 
         let mut anon = DefinitionsTable::default();
         let simple = &section.parse_connections_node(&doc, &mut anon).unwrap()[0];

@@ -18,7 +18,7 @@ use wiremock::{
 use http::uri::PathAndQuery;
 use motya_config::{
     common_types::{
-        connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig},
+        connectors::{ALPN, Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig},
         definitions::{ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         listeners::{ListenerConfig, ListenerKind, Listeners},
@@ -28,10 +28,10 @@ use motya_config::{
 use pingora::{prelude::HttpPeer, server::Server};
 use wiremock::MockServer;
 
-use motya::proxy::{
+use motya::{app_context::{pingora_opt, pingora_server_conf}, proxy::{
     filters::{chain_resolver::ChainResolver, generate_registry::load_registry},
     motya_proxy_service,
-};
+}};
 
 async fn setup_filters() -> String {
     let mock_server = MockServer::start().await;
@@ -93,8 +93,8 @@ async fn setup_filters() -> String {
                 lb_options: Default::default(),
                 chains,
                 upstream: UpstreamConfig::Service(HttpPeerConfig {
-                    peer: HttpPeer::new(mock_server.address().to_string(), false, "".to_string()),
-
+                    peer_address: *mock_server.address(),
+                    alpn: ALPN::H1,
                     prefix_path: PathAndQuery::from_static("/test"),
                     target_path: PathAndQuery::from_static("/"),
 
@@ -116,7 +116,7 @@ async fn setup_filters() -> String {
     };
 
     let mut app_server =
-        Server::new_with_opt_and_conf(config.pingora_opt(), config.pingora_server_conf());
+        Server::new_with_opt_and_conf(pingora_opt(&config), pingora_server_conf(&config));
 
     let (proxy_service, _) = motya_proxy_service(proxy, resolver, &app_server)
         .await

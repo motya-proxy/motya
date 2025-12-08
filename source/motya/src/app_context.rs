@@ -1,18 +1,17 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    files::motya_file_server,
-    proxy::{
+    files::motya_file_server, fs_adapter::TokioFs, proxy::{
         filters::{chain_resolver::ChainResolver, generate_registry},
         motya_proxy_service,
         plugins::store::WasmPluginStore,
         upstream_factory::UpstreamFactory,
         watcher::file_watcher::ConfigWatcher,
-    },
+    }
 };
+
 use motya_config::{
-    builder::{ConfigLoader, FileConfigLoaderProvider},
-    internal::Config,
+    internal::Config, kdl::fs_loader::FileCollector, loader::{ConfigLoader, FileConfigLoaderProvider}
 };
 use motya_config::{
     cli::{
@@ -21,7 +20,8 @@ use motya_config::{
     },
     common_types::definitions_table::DefinitionsTable,
 };
-use pingora::{server::Server, services::Service};
+use pingora::{server::{Server, configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf}}, services::Service};
+
 use tokio::sync::Mutex;
 
 pub struct AppContext {
@@ -35,7 +35,7 @@ fn resolve_config_path(cli: &Cli) -> PathBuf {
     if let Some(path) = &cli.config_entry {
         return path.clone();
     }
-
+    
     if let Ok(env_path) = std::env::var("MOTYA_CONFIG_PATH") {
         return env_path.into();
     }
@@ -69,12 +69,12 @@ impl AppContext {
             global_definitions,
             config_path,
             UpstreamFactory::new(resolver.clone()),
-            ConfigLoader::default(),
+            ConfigLoader::new(FileCollector::default()),
         );
 
         // 6. Prepare Server instance (Pingora)
         let server =
-            Server::new_with_opt_and_conf(config.pingora_opt(), config.pingora_server_conf());
+            Server::new_with_opt_and_conf(pingora_opt(&config), pingora_server_conf(&config));
 
         Ok(AppContext {
             config,
@@ -146,7 +146,7 @@ impl AppContext {
                 CliConfigBuilder::build_routes(*port, routes)?
             }
             None => {
-                let loader = ConfigLoader::default();
+                let loader = ConfigLoader::new(FileCollector::<TokioFs>::default());
                 loader
                     .load_entry_point(Some(config_path.into()), global_definitions)
                     .await?
@@ -212,5 +212,49 @@ fn apply_cli(conf: &mut Config, cli: &Cli) {
 
     if let Some(tps) = threads_per_service {
         conf.threads_per_service = *tps;
+    }
+}
+
+
+/// Get the [`Opt`][PingoraOpt] field for Pingora
+pub fn pingora_opt(config: &Config) -> PingoraOpt {
+    // TODO
+    PingoraOpt {
+        upgrade: config.upgrade,
+        daemon: config.daemonize,
+        nocapture: false,
+        test: config.validate_configs,
+        conf: None,
+    }
+}
+
+/// Get the [`ServerConf`][PingoraServerConf] field for Pingora
+pub fn pingora_server_conf(config: &Config) -> PingoraServerConf {
+    PingoraServerConf {
+        daemon: config.daemonize,
+        error_log: None,
+        // TODO: These are bad assumptions - non-developers will not have "target"
+        // files, and we shouldn't necessarily use utf-8 strings with fixed separators
+        // here.
+        pid_file: config
+            .pid_file
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from("/tmp/motya.pidfile"))
+            .to_string_lossy()
+            .into(),
+        upgrade_sock: config
+            .upgrade_socket
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from("/tmp/motya-upgrade.sock"))
+            .to_string_lossy()
+            .into(),
+        user: None,
+        group: None,
+        threads: config.threads_per_service,
+        work_stealing: true,
+        ca_file: None,
+        ..PingoraServerConf::default()
     }
 }

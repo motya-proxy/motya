@@ -7,12 +7,15 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    use motya::app_context::{pingora_opt, pingora_server_conf};
+    use motya::fs_adapter::TokioFs;
     use motya::proxy::filters::{chain_resolver::ChainResolver, registry::FilterRegistry};
     use motya::proxy::motya_proxy_service;
     use motya::proxy::upstream_factory::UpstreamFactory;
     use motya::proxy::watcher::file_watcher::ConfigWatcher;
-    use motya_config::builder::{ConfigLoader, FileConfigLoaderProvider};
     use motya_config::common_types::definitions_table::DefinitionsTable;
+    use motya_config::kdl::fs_loader::FileCollector;
+    use motya_config::loader::{ConfigLoader, FileConfigLoaderProvider};
     use pingora::server::Server;
     use reqwest::Client;
     use tempfile::tempdir;
@@ -72,6 +75,8 @@ mod tests {
 
         // We use __PORT__ placeholder to ensure we can run on a random free port
         let config_stage_1 = r#"
+        
+            system { }
             services {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
@@ -85,6 +90,7 @@ mod tests {
         "#;
 
         let config_stage_2 = r#"
+            system { }
             services {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
@@ -98,6 +104,7 @@ mod tests {
         "#;
 
         let config_stage_3 = r#"
+            system { }
             services {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
@@ -120,7 +127,7 @@ mod tests {
         }
 
         let mut definitions = DefinitionsTable::default();
-        let loader = ConfigLoader::default();
+        let loader = ConfigLoader::new(FileCollector::<TokioFs>::default());
 
         let config = loader
             .clone()
@@ -137,7 +144,7 @@ mod tests {
 
         // Start the real Pingora server in background
         let mut app_server =
-            Server::new_with_opt_and_conf(config.pingora_opt(), config.pingora_server_conf());
+            Server::new_with_opt_and_conf(pingora_opt(&config), pingora_server_conf(&config));
         app_server.bootstrap();
 
         let proxy_config = config.basic_proxies[0].clone();
@@ -151,7 +158,7 @@ mod tests {
         });
 
         // Initialize Watcher
-        let mut watcher = ConfigWatcher::new(
+        let mut watcher: ConfigWatcher<FileCollector<TokioFs>, ConfigLoader<FileCollector<TokioFs>>> = ConfigWatcher::new(
             config.clone(),
             definitions,
             config_path.clone(),

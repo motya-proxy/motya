@@ -1,10 +1,14 @@
+use std::path::PathBuf;
+
 use crate::common_types::{
-    connectors::Connectors, definitions::KeyTemplateConfig, file_server::FileServerConfig,
+    connectors::Connectors,
+    definitions::KeyTemplateConfig,
+    file_server::FileServerConfig,
     listeners::Listeners,
 };
-use pingora::server::configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf};
-use std::path::PathBuf;
+
 use tracing::warn;
+
 
 /// Motya's internal configuration
 #[derive(Debug, Clone, PartialEq)]
@@ -20,48 +24,7 @@ pub struct Config {
 }
 
 impl Config {
-    /// Get the [`Opt`][PingoraOpt] field for Pingora
-    pub fn pingora_opt(&self) -> PingoraOpt {
-        // TODO
-        PingoraOpt {
-            upgrade: self.upgrade,
-            daemon: self.daemonize,
-            nocapture: false,
-            test: self.validate_configs,
-            conf: None,
-        }
-    }
-
-    /// Get the [`ServerConf`][PingoraServerConf] field for Pingora
-    pub fn pingora_server_conf(&self) -> PingoraServerConf {
-        PingoraServerConf {
-            daemon: self.daemonize,
-            error_log: None,
-            // TODO: These are bad assumptions - non-developers will not have "target"
-            // files, and we shouldn't necessarily use utf-8 strings with fixed separators
-            // here.
-            pid_file: self
-                .pid_file
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(|| PathBuf::from("/tmp/motya.pidfile"))
-                .to_string_lossy()
-                .into(),
-            upgrade_sock: self
-                .upgrade_socket
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(|| PathBuf::from("/tmp/motya-upgrade.sock"))
-                .to_string_lossy()
-                .into(),
-            user: None,
-            group: None,
-            threads: self.threads_per_service,
-            work_stealing: true,
-            ca_file: None,
-            ..PingoraServerConf::default()
-        }
-    }
+    
 
     pub fn validate(&self) {
         // This is currently mostly ad-hoc checks, we should potentially be a bit
@@ -98,6 +61,7 @@ impl Config {
         }
     }
 }
+
 
 //
 // Basic Proxy Configuration

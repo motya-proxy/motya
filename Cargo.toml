@@ -2,7 +2,8 @@
 resolver = "2"
 members = [
     "source/motya",
-    "source/motya-config",
+    "source/motya-config", 
+    "source/motya-vscode",
     "source/tests"
 ]
 
@@ -55,7 +56,7 @@ log = "0.4.28"
 miette = { version = "7.6.0", features = ["fancy"] }
 regex = "1.10.4"
 thiserror = "2.0.17"
-tokio = { version ="1.37.0", features = ["full"] }
+tokio = { version ="1.37.0" }
 tracing = "0.1.40"
 bytes = "1.11.0"
 itertools = "0.14.0"

@@ -13,24 +13,26 @@ use crate::{
 
 pub struct ListenersSection<'a> {
     doc: &'a KdlDocument,
+    name: &'a str
 }
 
 impl SectionParser<KdlDocument, Listeners> for ListenersSection<'_> {
     fn parse_node(&self, node: &KdlDocument) -> miette::Result<Listeners> {
-        let listener_node = utils::required_child_doc(self.doc, node, "listeners")?;
+        let listener_node = utils::required_child_doc(self.doc, node, "listeners", self.name)?;
         let listeners = utils::data_nodes(self.doc, listener_node)?;
         if listeners.is_empty() {
             return Err(Bad::docspan(
                 "nonzero listeners required",
                 self.doc,
                 &listener_node.span(),
+                self.name
             )
             .into());
         }
 
         let mut list_cfgs = vec![];
         for (node, name, args) in listeners {
-            let listener = Self::extract_listener(self.doc, node, name, args)?;
+            let listener = self.extract_listener(node, name, args)?;
             list_cfgs.push(listener);
         }
 
@@ -39,27 +41,27 @@ impl SectionParser<KdlDocument, Listeners> for ListenersSection<'_> {
 }
 
 impl<'a> ListenersSection<'a> {
-    pub fn new(doc: &'a KdlDocument) -> Self {
-        Self { doc }
+    pub fn new(doc: &'a KdlDocument, name: &'a str) -> Self {
+        Self { doc, name }
     }
 
     fn extract_listener(
-        doc: &KdlDocument,
+        &self,
         node: &KdlNode,
         name: &str,
         args: &[KdlEntry],
     ) -> miette::Result<ListenerConfig> {
         // Is this a bindable name?
         if name.parse::<SocketAddr>().is_ok() {
-            let args = utils::str_value_args(doc, args)?
+            let args = utils::str_value_args(self.doc, args, self.name)?
                 .into_iter()
                 .collect::<HashMap<&str, &KdlEntry>>()
-                .ensure_only_keys(&["cert-path", "key-path", "offer-h2"], doc, node)?;
+                .ensure_only_keys(&["cert-path", "key-path", "offer-h2"], self.doc, node, self.name)?;
 
             // Cool: do we have reasonable args for this?
-            let cert_path = utils::map_ensure_str(doc, args.get("cert-path").copied())?;
-            let key_path = utils::map_ensure_str(doc, args.get("key-path").copied())?;
-            let offer_h2 = utils::map_ensure_bool(doc, args.get("offer-h2").copied())?;
+            let cert_path = utils::map_ensure_str(self.doc, args.get("cert-path").copied(), self.name)?;
+            let key_path = utils::map_ensure_str(self.doc, args.get("key-path").copied(), self.name)?;
+            let offer_h2 = utils::map_ensure_bool(self.doc, args.get("offer-h2").copied(), self.name)?;
 
             match (cert_path, key_path, offer_h2) {
                 // No config? No problem!
@@ -75,8 +77,8 @@ impl<'a> ListenersSection<'a> {
                 (None, Some(_), _) | (Some(_), None, _) => {
                     Err(Bad::docspan(
                         "'cert-path' and 'key-path' must either BOTH be present, or NEITHER should be present",
-                        doc,
-                        &node.span(),
+                        self.doc,
+                        &node.span(), self.name
                     )
                     .into())
                 }
@@ -85,8 +87,8 @@ impl<'a> ListenersSection<'a> {
                 (None, None, Some(_)) => {
                     Err(Bad::docspan(
                         "'offer-h2' requires TLS, specify 'cert-path' and 'key-path'",
-                        doc,
-                        &node.span(),
+                        self.doc,
+                        &node.span(), self.name
                     )
                     .into())
                 }
@@ -111,9 +113,9 @@ impl<'a> ListenersSection<'a> {
         // }
         else {
             Err(Bad::docspan(
-                format!("'{name}' is not a socketaddr or path?"),
-                doc,
-                &node.span(),
+                format!("'{name}' is not a valid socket address. Expected format: 'IP:PORT' (e.g., '127.0.0.1:8080', '[::1]:443'"),
+                self.doc,
+                &node.span(), self.name
             )
             .into())
         }

@@ -9,3 +9,5 @@ pub mod rate_limiter;
 pub mod services;
 pub mod system_data;
 pub mod utils;
+pub mod compiler;
+pub mod fs_loader;

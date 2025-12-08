@@ -12,13 +12,14 @@ pub(crate) fn required_child_doc<'a>(
     doc: &KdlDocument,
     here: &'a KdlDocument,
     name: &str,
+    source_name: &str
 ) -> miette::Result<&'a KdlDocument> {
     let node = here
         .get(name)
-        .or_bail(format!("'{name}' is required!"), doc, &here.span())?;
+        .or_bail(format!("'{name}' is required!"), doc, &here.span(), source_name)?;
 
     node.children()
-        .or_bail("expected a nested node", doc, &node.span())
+        .or_bail("expected a nested node", doc, &node.span(), source_name)
 }
 
 /// Like `required_child_doc`, but allowed to be missing
@@ -38,6 +39,7 @@ pub(crate) fn optional_child_doc<'a>(
 pub(crate) fn wildcard_argless_child_docs<'a>(
     doc: &KdlDocument,
     here: &'a KdlDocument,
+    source_name: &str
 ) -> miette::Result<Vec<(&'a str, &'a KdlDocument)>> {
     // TODO: assert no args?
     let mut children = vec![];
@@ -47,6 +49,7 @@ pub(crate) fn wildcard_argless_child_docs<'a>(
             format!("'{name}' should be a nested block"),
             doc,
             &node.span(),
+            source_name
         )?;
         children.push((name, child));
     }
@@ -79,17 +82,18 @@ pub(crate) fn data_nodes<'a>(
 pub(crate) fn str_str_args<'a>(
     doc: &KdlDocument,
     args: &'a [KdlEntry],
+    source_name: &str
 ) -> miette::Result<Vec<(&'a str, &'a str)>> {
     let mut out = vec![];
     for arg in args {
         let name =
             arg.name()
                 .map(|a| a.value())
-                .or_bail("arguments should be named", doc, &arg.span())?;
+                .or_bail("arguments should be named", doc, &arg.span(), source_name)?;
         let val =
             arg.value()
                 .as_string()
-                .or_bail("arg values should be a string", doc, &arg.span())?;
+                .or_bail("arg values should be a string", doc, &arg.span(), source_name)?;
         out.push((name, val));
     }
     Ok(out)
@@ -102,13 +106,14 @@ pub(crate) fn str_str_args<'a>(
 pub(crate) fn str_value_args<'a>(
     doc: &KdlDocument,
     args: &'a [KdlEntry],
+    source_name: &str
 ) -> miette::Result<Vec<(&'a str, &'a KdlEntry)>> {
     let mut out = vec![];
     for arg in args {
         let name =
             arg.name()
                 .map(|a| a.value())
-                .or_bail("arguments should be named", doc, &arg.span())?;
+                .or_bail("arguments should be named", doc, &arg.span(), source_name)?;
 
         out.push((name, arg));
     }
@@ -121,13 +126,14 @@ pub(crate) fn str_value_args<'a>(
 pub(crate) fn map_ensure_str<'a>(
     doc: &'_ KdlDocument,
     val: Option<&'a KdlEntry>,
+    source_name: &str
 ) -> miette::Result<Option<&'a str>> {
     let Some(v) = val else {
         return Ok(None);
     };
     match v.value().as_string() {
         Some(vas) => Ok(Some(vas)),
-        None => Err(Bad::docspan("Expected string argument", doc, &v.span()).into()),
+        None => Err(Bad::docspan("Expected string argument", doc, &v.span(), source_name).into()),
     }
 }
 
@@ -137,13 +143,14 @@ pub(crate) fn map_ensure_str<'a>(
 pub(crate) fn map_ensure_bool(
     doc: &KdlDocument,
     val: Option<&KdlEntry>,
+    source_name: &str
 ) -> miette::Result<Option<bool>> {
     let Some(v) = val else {
         return Ok(None);
     };
     match v.value().as_bool() {
         Some(vas) => Ok(Some(vas)),
-        None => Err(Bad::docspan("Expected bool argument", doc, &v.span()).into()),
+        None => Err(Bad::docspan("Expected bool argument", doc, &v.span(), source_name).into()),
     }
 }
 
@@ -153,6 +160,7 @@ pub(crate) fn extract_one_str_arg<T, F: FnOnce(&str) -> Option<T>>(
     node: &KdlNode,
     name: &str,
     args: &[KdlEntry],
+    source_name: &str,
     f: F,
 ) -> miette::Result<T> {
     match args {
@@ -163,6 +171,7 @@ pub(crate) fn extract_one_str_arg<T, F: FnOnce(&str) -> Option<T>>(
         format!("Incorrect argument for '{name}'"),
         doc,
         &node.span(),
+        source_name
     )
 }
 
@@ -172,6 +181,7 @@ pub(crate) fn extract_one_bool_arg(
     node: &KdlNode,
     name: &str,
     args: &[KdlEntry],
+    source_name: &str
 ) -> miette::Result<bool> {
     match args {
         [one] => one.value().as_bool(),
@@ -181,6 +191,7 @@ pub(crate) fn extract_one_bool_arg(
         format!("Incorrect argument for '{name}'"),
         doc,
         &node.span(),
+        source_name
     )
 }
 
@@ -192,26 +203,28 @@ pub(crate) fn extract_one_str_arg_with_kv_args<T, F: FnOnce(&str) -> Option<T>>(
     node: &KdlNode,
     name: &str,
     args: &[KdlEntry],
+    source_name: &str,
     f: F,
 ) -> miette::Result<(T, HashMap<String, String>)> {
     let (first, rest) =
         args.split_first()
-            .or_bail(format!("Missing arguments for '{name}'"), doc, &node.span())?;
+            .or_bail(format!("Missing arguments for '{name}'"), doc, &node.span(), source_name)?;
     let first = first.value().as_string().and_then(f).or_bail(
         format!("Incorrect argument for '{name}'"),
         doc,
         &node.span(),
+        source_name
     )?;
     let mut kvs = HashMap::new();
     rest.iter().try_for_each(|arg| -> miette::Result<()> {
         let key = arg
             .name()
-            .or_bail("Should be a named argument", doc, &arg.span())?
+            .or_bail("Should be a named argument", doc, &arg.span(), source_name)?
             .value();
         let val = arg
             .value()
             .as_string()
-            .or_bail("Should be a string value", doc, &arg.span())?;
+            .or_bail("Should be a string value", doc, &arg.span(), source_name)?;
         kvs.insert(key.to_string(), val.to_string());
         Ok(())
     })?;
@@ -225,6 +238,7 @@ pub trait HashMapValidationExt {
         allowed: &[&str],
         doc: &KdlDocument,
         node: &KdlNode,
+        source_name: &str
     ) -> miette::Result<Self>
     where
         Self: Sized;
@@ -236,6 +250,7 @@ impl<V> HashMapValidationExt for HashMap<&str, V> {
         allowed: &[&str],
         doc: &KdlDocument,
         node: &KdlNode,
+        source_name: &str
     ) -> miette::Result<Self> {
         if let Some(bad_key) = self.keys().find(|k| !allowed.contains(k)) {
             return Err(Bad::docspan(
@@ -245,6 +260,7 @@ impl<V> HashMapValidationExt for HashMap<&str, V> {
                 ),
                 doc,
                 &node.span(),
+                source_name
             )
             .into());
         }

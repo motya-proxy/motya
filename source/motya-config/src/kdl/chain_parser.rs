@@ -9,10 +9,17 @@ use fqdn::FQDN;
 use kdl::KdlDocument;
 use std::{collections::HashMap, str::FromStr};
 
-pub struct ChainParser;
+pub struct ChainParser<'a> {
+    pub source_name: &'a str
+}
 
-impl ChainParser {
-    pub fn parse(doc: &KdlDocument, block: &KdlDocument) -> miette::Result<FilterChain> {
+impl<'a> ChainParser<'a> {
+
+    pub fn new(source_name: &'a str) -> Self {
+        Self { source_name }
+    }
+
+    pub fn parse(&self, doc: &KdlDocument, block: &KdlDocument) -> miette::Result<FilterChain> {
         let nodes = utils::data_nodes(doc, block)?;
         let mut filters = Vec::new();
 
@@ -22,20 +29,21 @@ impl ChainParser {
                     format!("Expected 'filter' directive, found '{name}'"),
                     doc,
                     &node.span(),
+                    self.source_name
                 )
                 .into());
             }
 
-            let mut args_map: HashMap<String, String> = utils::str_str_args(doc, args)?
+            let mut args_map: HashMap<String, String> = utils::str_str_args(doc, args, self.source_name)?
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
 
             let filter_name = FQDN::from_str(&args_map.remove("name").ok_or_else(|| {
-                Bad::docspan("filter requires a 'name' argument", doc, &node.span())
+                Bad::docspan("filter requires a 'name' argument", doc, &node.span(), self.source_name)
             })?)
             .map_err(|err| {
-                Bad::docspan(format!("name is not FQDN, err: '{err}'"), doc, &node.span())
+                Bad::docspan(format!("name is not FQDN, err: '{err}'"), doc, &node.span(), self.source_name)
             })?;
 
             filters.push(ConfiguredFilter {
@@ -60,8 +68,9 @@ mod tests {
             filter name="com.example.logger" level="debug" format="json"
         "#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
+        let parser = ChainParser::new("source_name");
 
-        let chain = ChainParser::parse(&doc, &doc).expect("Should parse valid chain");
+        let chain = parser.parse(&doc, &doc).expect("Should parse valid chain");
 
         assert_eq!(chain.filters.len(), 2);
 
@@ -80,7 +89,8 @@ mod tests {
         let kdl_input = "";
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let chain = ChainParser::parse(&doc, &doc).expect("Should parse empty block");
+        let parser = ChainParser::new("source_name");
+        let chain = parser.parse(&doc, &doc).expect("Should parse empty block");
         assert!(chain.filters.is_empty());
     }
 
@@ -92,7 +102,8 @@ mod tests {
         "#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let result = ChainParser::parse(&doc, &doc);
+        let parser = ChainParser::new("source_name");
+        let result = parser.parse(&doc, &doc);
         let msg_err = result.unwrap_err().help().unwrap().to_string();
 
         crate::assert_err_contains!(msg_err, "Expected 'filter' directive, found 'not-filter'");
@@ -105,7 +116,8 @@ mod tests {
         "#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let result = ChainParser::parse(&doc, &doc);
+        let parser = ChainParser::new("source_name");
+        let result = parser.parse(&doc, &doc);
         let msg_err = result.unwrap_err().help().unwrap().to_string();
         crate::assert_err_contains!(msg_err, "filter requires a 'name' argument");
     }
@@ -117,7 +129,8 @@ mod tests {
         "#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
-        let result = ChainParser::parse(&doc, &doc);
+        let parser = ChainParser::new("source_name");
+        let result = parser.parse(&doc, &doc);
         let msg_err = result.unwrap_err().help().unwrap().to_string();
 
         crate::assert_err_contains!(msg_err, "name is not FQDN");
