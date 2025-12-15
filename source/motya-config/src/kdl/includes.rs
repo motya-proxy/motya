@@ -1,9 +1,6 @@
 use crate::{
     common_types::section_parser::SectionParser,
-    kdl::parser::{
-        ctx::ParseContext,
-        ensures::Rule,
-    },
+    kdl::parser::{ctx::ParseContext, ensures::Rule},
 };
 use miette::Result;
 use motya_macro::validate;

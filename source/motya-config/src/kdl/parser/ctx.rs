@@ -1,7 +1,8 @@
 use fqdn::FQDN;
-use kdl::{KdlDocument, KdlEntry, KdlNode};
+use kdl::{KdlDocument, KdlEntry, KdlNode, KdlValue};
 use miette::{Result, SourceSpan};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::Debug,
     ops::{Range, RangeFrom, RangeFull, RangeTo},
@@ -9,13 +10,16 @@ use std::{
     vec::IntoIter,
 };
 
-use crate::{common_types::bad::Bad, kdl::parser::typed_value::TypedValue};
+use crate::{
+    common_types::bad::Bad, kdl::parser::typed_value::TypedValue, var_registry::VarRegistry,
+};
 
 #[derive(Debug, Clone)]
 pub struct ParseContext<'a> {
-    pub doc: &'a KdlDocument,
-    pub source_name: &'a str,
-    pub current: Current<'a>,
+    doc: &'a KdlDocument,
+    source_name: &'a str,
+    current: Current<'a>,
+    pub(crate) registry: Option<&'a VarRegistry>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,12 +29,26 @@ pub enum Current<'a> {
 }
 
 impl<'a> ParseContext<'a> {
+    pub fn new_with_registy(
+        doc: &'a KdlDocument,
+        current: Current<'a>,
+        source_name: &'a str,
+        registry: &'a VarRegistry,
+    ) -> Self {
+        Self {
+            current,
+            doc,
+            registry: Some(registry),
+            source_name,
+        }
+    }
     /// Creates a new parsing context from a document and a specific location (node or root).
     pub fn new(doc: &'a KdlDocument, current: Current<'a>, source_name: &'a str) -> Self {
         Self {
             doc,
             source_name,
             current,
+            registry: None,
         }
     }
 
@@ -52,14 +70,6 @@ impl<'a> ParseContext<'a> {
             Current::Document(_) => {
                 Err(self.error("Cannot enter block: current context is already a document root"))
             }
-        }
-    }
-
-    /// Creates a new context focused on a specific child node.
-    pub fn for_node(&self, node: &'a KdlNode, args: &'a [KdlEntry]) -> Self {
-        Self {
-            current: Current::Node(node, args),
-            ..self.clone()
         }
     }
 
@@ -145,43 +155,6 @@ impl<'a> ParseContext<'a> {
             Current::Document(_) => Err(self.error("Expected node, but current is a document")),
             Current::Node(_, args) => Ok(args),
         }
-    }
-
-    /// Extracts named arguments into a map and enforces a whitelist of allowed keys.
-    pub fn args_map_with_only_keys<R>(
-        &self,
-        range: R,
-        allowed: &[&str],
-    ) -> Result<HashMap<&str, &str>>
-    where
-        R: SliceRange<[KdlEntry]>,
-    {
-        self.args_map(range)?.ensure_only_keys(
-            allowed,
-            self.doc,
-            &self.current_span(),
-            self.source_name,
-        )
-    }
-
-    /// Extracts named arguments (key="value") into a HashMap within a specific range.
-    pub fn args_map<R>(&self, range: R) -> Result<HashMap<&str, &str>>
-    where
-        R: SliceRange<[KdlEntry]>,
-    {
-        let args = self.args()?;
-        let sliced = range
-            .slice(args)
-            .ok_or_else(|| self.error("Range out of bounds"))?;
-
-        Ok(sliced
-            .iter()
-            .filter_map(|arg| {
-                let name = arg.name()?.value();
-                let value = arg.value().as_string()?;
-                Some((name, value))
-            })
-            .collect())
     }
 
     /// Retrieves a required named property as a String.

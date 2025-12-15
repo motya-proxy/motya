@@ -47,32 +47,24 @@ fqdn = "0.5.0"
 arc-swap = "1.7.1"
 async-trait = "0.1.89"
 cidr = "0.3.1"
-concread = "0.5.7"
 futures-util = "0.3.31"
 http = "1.3.1"
 kdl = "6.5.0"
-lazy_static = "1.5.0"
-leaky-bucket = "1.1.2"
-log = "0.4.28"
-miette = { version = "7.6.0", features = ["fancy"] }
+miette = { version = "7.6.0", features = ["fancy", "serde"] }
 regex = "1.10.4"
 thiserror = "2.0.17"
 tokio = { version ="1.37.0" }
 tracing = "0.1.40"
 bytes = "1.11.0"
-itertools = "0.14.0"
 nix = { version = "0.30.1", features = ["signal"] }
 matchit = "0.9.0"
 reqwest = "0.12.24"
-# WASM
-wit-bindgen = { version = "0.48.1" }
 wasmtime = { version = "39.0.0", features = ["component-model"] }
 wasmtime-wasi = "39.0.0"
 wasmtime-wasi-io = "39.0.0"
 
-# Pingora dependencies
+
 pingora = "0.6.0"
-pingora-core = { version = "0.6.0", features = ["openssl", "openssl_derived"] }
 pingora-proxy = "0.6.0"
 pingora-http = "0.6.0"
 pingora-load-balancing = "0.6.0"
@@ -82,7 +74,6 @@ static-files-module = "0.2"
 pandora-module-utils = "0.2"
 tracing-subscriber = { version = "0.3.20", features = ["fmt","tracing-log"] }
 clap = { version  = "4.5.53", features = ["derive"]}
-serde = { version  = "1.0.228", features = ["derive"]}
 
 # dev
 tempfile = "3.23.0"

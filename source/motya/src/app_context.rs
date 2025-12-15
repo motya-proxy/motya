@@ -7,6 +7,7 @@ use crate::{
         filters::{chain_resolver::ChainResolver, generate_registry},
         motya_proxy_service,
         plugins::store::WasmPluginStore,
+        rate_limiter::registry::StorageRegistry,
         upstream_factory::UpstreamFactory,
         watcher::file_watcher::ConfigWatcher,
     },
@@ -71,7 +72,13 @@ impl AppContext {
         store.register_into(&mut registry_map);
 
         let registry = Arc::new(Mutex::new(registry_map));
-        let resolver = ChainResolver::new(global_definitions.clone(), registry.clone()).await?;
+        let storage_registry = Arc::new(StorageRegistry::default());
+        let resolver = ChainResolver::new(
+            global_definitions.clone(),
+            registry.clone(),
+            storage_registry,
+        )
+        .await?;
 
         // 5. Setup Watcher
         let watcher = ConfigWatcher::new(

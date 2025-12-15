@@ -1,7 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
 use crate::common_types::{
-    connectors::Connectors, definitions::KeyTemplateConfig, file_server::FileServerConfig,
+    connectors::Connectors, definitions::BalancerConfig, file_server::FileServerConfig,
     listeners::Listeners,
 };
 
@@ -72,7 +72,7 @@ pub struct ProxyConfig {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UpstreamOptions {
     pub selection: SelectionKind,
-    pub template: Option<KeyTemplateConfig>,
+    pub template: Option<BalancerConfig>,
     pub health_checks: HealthCheckKind,
     pub discovery: DiscoveryKind,
 }

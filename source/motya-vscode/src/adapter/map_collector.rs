@@ -61,7 +61,8 @@ impl MapCollector {
 
         let name = path.to_string_lossy();
 
-        let includes = IncludesSection.parse_node(ParseContext::new(&doc, Current::Document(&doc), &name))?;
+        let includes =
+            IncludesSection.parse_node(ParseContext::new(&doc, Current::Document(&doc), &name))?;
 
         let base_dir = path.parent().unwrap_or_else(|| std::path::Path::new("."));
 

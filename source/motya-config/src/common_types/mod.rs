@@ -4,6 +4,7 @@ pub mod connectors;
 pub mod definitions;
 pub mod definitions_table;
 pub mod file_server;
+pub mod key_template;
 pub mod listeners;
 pub mod rate_limiter;
 pub mod section_parser;

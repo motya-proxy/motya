@@ -31,8 +31,10 @@ use motya_config::{
 pub mod balancer;
 pub mod context;
 pub mod filters;
+pub mod key_selector;
 pub mod plugins;
 pub mod populate_listeners;
+pub mod rate_limiter;
 pub mod upstream_factory;
 pub mod upstream_router;
 pub mod watcher;

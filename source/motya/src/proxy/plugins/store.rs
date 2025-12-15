@@ -183,7 +183,14 @@ mod tests {
             },
         );
 
-        DefinitionsTable::new(HashSet::new(), HashMap::new(), plugins, Default::default())
+        DefinitionsTable::new(
+            HashSet::new(),
+            HashMap::new(),
+            plugins,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
     }
 
     #[tokio::test]
@@ -307,8 +314,14 @@ mod tests {
             },
         );
 
-        let table =
-            DefinitionsTable::new(HashSet::new(), HashMap::new(), plugins, Default::default());
+        let table = DefinitionsTable::new(
+            HashSet::new(),
+            HashMap::new(),
+            plugins,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        );
 
         let factory = WasmPluginStore::compile(&table)
             .await

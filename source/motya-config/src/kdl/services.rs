@@ -92,7 +92,7 @@ impl<'a> ServicesSection<'a> {
         listeners: Listeners,
         service_name: &str,
     ) -> miette::Result<ServiceConfig> {
-        let file_server = FileServerSection::new(ctx.doc, service_name).parse_node(ctx)?;
+        let file_server = FileServerSection::new(service_name).parse_node(ctx)?;
 
         Ok(ServiceConfig::FileServer(FileServerConfig {
             name: service_name.to_string(),

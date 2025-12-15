@@ -154,22 +154,96 @@ impl SystemDataSection {
         }))
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::assert_err_contains;
     use crate::kdl::parser::block::BlockParser;
     use crate::kdl::parser::ctx::Current;
+    use crate::var_registry::VarRegistry;
     use kdl::KdlDocument;
 
-    fn parse_system(input: &str) -> miette::Result<SystemData> {
+    fn parse_system_with_registry(
+        input: &str,
+        registry: Option<&VarRegistry>,
+    ) -> miette::Result<SystemData> {
         let doc: KdlDocument = input.parse().unwrap();
-        let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
+
+        let mut ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
+        ctx.registry = registry;
+
         let mut block = BlockParser::new(ctx)?;
 
         let data = block.required("system", |ctx| SystemDataSection.extract_system_data(ctx))?;
 
         data.ok_or_else(|| miette::miette!("System section parsed but returned None"))
+    }
+
+    fn parse_system(input: &str) -> miette::Result<SystemData> {
+        parse_system_with_registry(input, None)
+    }
+
+    #[test]
+    fn test_threads_from_sys_var() {
+        let registry = VarRegistry::new();
+        let real_cpu_count = num_cpus::get();
+
+        let input = r#"
+        system {
+            threads-per-service (var)"num_cpus"
+        }
+        "#;
+
+        let data = parse_system_with_registry(input, Some(&registry))
+            .expect("Should parse with sys variable");
+
+        assert_eq!(
+            data.threads_per_service, real_cpu_count,
+            "threads-per-service should match actual system CPU count"
+        );
+    }
+
+    #[test]
+    fn test_threads_from_custom_registry_val() {
+        let mut registry = VarRegistry::new();
+
+        registry
+            .vars
+            .insert("num_cpus".to_string(), "42".to_string());
+
+        let input = r#"
+        system {
+            threads-per-service (var)"num_cpus"
+        }
+        "#;
+
+        let data = parse_system_with_registry(input, Some(&registry)).expect("Should parse");
+
+        assert_eq!(data.threads_per_service, 42);
+    }
+
+    #[test]
+    fn test_env_var_injection() {
+        let registry = VarRegistry::new();
+        unsafe {
+            std::env::set_var("TEST_DAEMONIZE", "true");
+        }
+
+        let input = r#"
+        system {
+            daemonize (env)"TEST_DAEMONIZE"
+        }
+        "#;
+
+        let data =
+            parse_system_with_registry(input, Some(&registry)).expect("Should parse env var");
+
+        assert!(data.daemonize);
+
+        unsafe {
+            std::env::remove_var("TEST_DAEMONIZE");
+        }
     }
 
     #[test]

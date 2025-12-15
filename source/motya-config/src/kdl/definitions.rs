@@ -1,6 +1,8 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use fqdn::FQDN;
+use humantime::parse_duration;
+use miette::Result;
 use motya_macro::validate;
 
 use crate::{
@@ -8,16 +10,20 @@ use crate::{
     common_types::{
         definitions::{PluginDefinition, PluginSource},
         definitions_table::DefinitionsTable,
+        rate_limiter::{RateLimitPolicy, StorageConfig},
         section_parser::SectionParser,
     },
     kdl::{
         chain_parser::ChainParser,
         key_profile_parser::KeyProfileParser,
+        key_template::KeyTemplateParser,
         parser::{
             ctx::ParseContext,
             ensures::Rule,
             utils::{OptionTypedValueExt, PrimitiveType},
         },
+        rate_limit::RateLimitPolicyParser,
+        transforms_order::TransformsOrderParser,
     },
 };
 
@@ -38,10 +44,131 @@ impl DefinitionsSection {
             ctx,
             optional("modifiers") => |ctx| self.parse_modifiers(ctx, &mut table),
             optional("plugins") => |ctx| self.parse_plugins(ctx, &mut table),
-            optional("key-profiles") => |ctx| self.parse_key_profiles(ctx, &mut table)
+            optional("key-profiles") => |ctx| self.parse_key_profiles(ctx, &mut table),
+            optional("storages") => |ctx| self.parse_storages(ctx, &mut table),
+            optional("rate-limits") => |ctx| self.parse_rate_limits(ctx, &mut table)
         );
 
         Ok(table)
+    }
+
+    fn parse_storages(
+        &self,
+        ctx: ParseContext<'_>,
+        table: &mut DefinitionsTable,
+    ) -> miette::Result<()> {
+        block_parser!(ctx,
+            repeated("storage") => |ctx| self.parse_single_storage(ctx, table)
+        );
+        Ok(())
+    }
+
+    fn parse_single_storage(
+        &self,
+        ctx: ParseContext<'_>,
+        table: &mut DefinitionsTable,
+    ) -> miette::Result<()> {
+        ctx.validate(&[
+            Rule::ReqChildren,
+            Rule::ExactArgs(1),
+            Rule::OnlyKeysTyped(&[("type", PrimitiveType::String)]),
+        ])?;
+
+        let name = ctx.first()?.as_str()?;
+        let storage_type = ctx.prop("type")?.as_str()?;
+
+        let block_ctx = ctx.enter_block()?;
+
+        let config = match storage_type.as_str() {
+            "memory" => self.parse_memory_storage(block_ctx)?,
+            "redis" => self.parse_redis_storage(block_ctx)?,
+            unknown => {
+                return Err(ctx.error(format!(
+                    "Unknown storage type: '{}'. Supported: 'memory', 'redis'",
+                    unknown
+                )))
+            }
+        };
+
+        if table.insert_storage(name.to_string(), config).is_some() {
+            return Err(ctx.error(format!("Duplicate storage definition: '{}'", name)));
+        }
+
+        Ok(())
+    }
+
+    fn parse_memory_storage(&self, ctx: ParseContext<'_>) -> miette::Result<StorageConfig> {
+        block_parser!(ctx,
+            max_keys: optional("max-keys") => |ctx| {
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
+
+                ctx.first()?.as_usize()
+            },
+            cleanup_interval: optional("cleanup-interval") => |ctx| {
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
+                let s = ctx.first()?.as_str()?;
+
+                parse_duration(&s).map_err(|e| ctx.error(format!("Invalid duration: {}", e)))
+            }
+        );
+
+        Ok(StorageConfig::Memory {
+            max_keys: max_keys.unwrap_or(10000),
+            cleanup_interval: cleanup_interval.unwrap_or(Duration::from_secs(60)),
+        })
+    }
+
+    fn parse_redis_storage(&self, ctx: ParseContext<'_>) -> miette::Result<StorageConfig> {
+        block_parser!(ctx,
+            addresses: required("addresses") => |ctx| {
+                ctx.validate(&[Rule::NoChildren, Rule::AtLeastArgs(1)])?;
+
+                ctx.args_typed()?.iter().map(|v| v.as_str()).collect::<Result<Vec<_>>>()
+            },
+            password: optional("password") => |ctx| {
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
+
+                Ok(ctx.first()?.as_str()?.to_string())
+            },
+            timeout: optional("timeout") => |ctx| {
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
+                let s = ctx.first()?.as_str()?;
+
+                parse_duration(&s).map_err(|e| ctx.error(format!("Invalid duration: {}", e)))
+            }
+        );
+
+        Ok(StorageConfig::Redis {
+            addresses,
+            password,
+            timeout,
+        })
+    }
+
+    fn parse_rate_limits(
+        &self,
+        ctx: ParseContext<'_>,
+        table: &mut DefinitionsTable,
+    ) -> miette::Result<()> {
+        block_parser!(ctx,
+            repeated("policy") => |ctx| self.parse_single_policy(ctx, table)
+        );
+        Ok(())
+    }
+
+    fn parse_single_policy(
+        &self,
+        ctx: ParseContext<'_>,
+        table: &mut DefinitionsTable,
+    ) -> miette::Result<()> {
+        let policy = RateLimitPolicyParser.parse(ctx.clone(), None, None)?;
+        let name = policy.name.clone();
+
+        if table.insert_rate_limit(name.clone(), policy).is_some() {
+            return Err(ctx.error(format!("Duplicate rate-limit policy: '{}'", name)));
+        }
+
+        Ok(())
     }
 
     fn parse_key_profiles(
@@ -232,7 +359,7 @@ impl DefinitionsSection {
             return Err(ctx.error(format!("Duplicate chain-filters name: '{}'", chain_name)));
         }
 
-        let chain = ChainParser.parse(ctx.enter_block()?)?;
+        let chain = ChainParser.parse(ctx.enter_block()?, None, None)?;
 
         table.insert_chain(chain_name, chain);
 
@@ -250,11 +377,16 @@ mod tests {
     use crate::{
         assert_err_contains,
         common_types::{
-            connectors::{ALPN, Connectors, ConnectorsLeaf, RouteMatcher, UpstreamConfig},
-            definitions::Modificator,
+            connectors::{Connectors, ConnectorsLeaf, RouteMatcher, UpstreamConfig, ALPN},
+            definitions::{ChainItem, Modificator},
+            key_template::KeyTemplate,
         },
         internal::{DiscoveryKind, HealthCheckKind, SelectionKind},
-        kdl::{connectors::ConnectorsSection, definitions::DefinitionsSection, parser::{block::BlockParser, ctx::Current}},
+        kdl::{
+            connectors::ConnectorsSection,
+            definitions::DefinitionsSection,
+            parser::{block::BlockParser, ctx::Current},
+        },
     };
 
     fn parse_config(input: &str) -> miette::Result<Connectors> {
@@ -283,6 +415,50 @@ mod tests {
         conn_block.required("connectors", |ctx| {
             ConnectorsSection::new(&table).parse_node(ctx)
         })
+    }
+
+    const DEFS_RATE_LIMIT: &str = r#"
+    definitions {
+        storages {
+            storage "my-redis" type="redis" {
+                addresses "127.0.0.1:6379"
+                timeout "100ms"
+            }
+            storage "local" type="memory" {
+                max-keys 5000
+            }
+        }
+        rate-limits {
+            policy "api-limiter" {
+                algorithm "token-bucket"
+                storage "my-redis"
+                key "${client-ip}"
+                rate "100/m"
+                burst 20
+            }
+        }
+    }
+    "#;
+
+    #[test]
+    fn test_parse_rate_limits() {
+        let doc: KdlDocument = DEFS_RATE_LIMIT.parse().unwrap();
+        let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
+        let mut defs_block = BlockParser::new(ctx).unwrap();
+
+        let defs = defs_block
+            .required("definitions", |ctx| DefinitionsSection.parse_node(ctx))
+            .unwrap();
+
+        assert!(defs.has_rate_storage("my-redis"));
+        assert!(defs.has_rate_storage("local"));
+
+        let policy = defs
+            .get_rate_limit("api-limiter")
+            .expect("Policy not found");
+        assert_eq!(policy.storage_key, "my-redis");
+        assert_eq!(policy.burst, 20);
+        assert!((policy.rate_req_per_sec - (100.0 / 60.0)).abs() < f64::EPSILON);
     }
 
     const LOAD_BALANCE_BASIC: &str = r#"
@@ -381,7 +557,10 @@ mod tests {
         assert!(lb_options.template.is_some());
 
         let template = lb_options.template.as_ref().unwrap();
-        assert_eq!(template.source, "amogus".to_string());
+        assert_eq!(
+            template.source,
+            "amogus".to_string().parse::<KeyTemplate>().unwrap()
+        );
     }
 
     const LOAD_BALANCE_HASH_WITHOUT_KEY_SOURCE: &str = r#"
@@ -639,7 +818,9 @@ mod tests {
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
                 assert!(named_chain.name.contains("__anon_"), "Should be anonymous");
-                let filter = &named_chain.chain.filters[0];
+                let ChainItem::Filter(filter) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
 
                 assert_eq!(filter.name, "rate-limit");
                 assert_eq!(filter.args.len(), 2);
@@ -651,9 +832,11 @@ mod tests {
         match &upstream.chains[1] {
             Modificator::Chain(named_chain) => {
                 assert_eq!(named_chain.name, "defined_with_args");
-                assert_eq!(named_chain.chain.filters.len(), 2);
+                assert_eq!(named_chain.chain.items.len(), 2);
 
-                let filter1 = &named_chain.chain.filters[0];
+                let ChainItem::Filter(filter1) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
                 assert_eq!(filter1.name, "set-header");
                 assert_eq!(filter1.args.len(), 2);
                 assert_eq!(
@@ -662,7 +845,9 @@ mod tests {
                 );
                 assert_eq!(filter1.args.get("value").map(|s| s.as_str()), Some("EU"));
 
-                let filter2 = &named_chain.chain.filters[1];
+                let ChainItem::Filter(filter2) = &named_chain.chain.items[1] else {
+                    unreachable!()
+                };
                 assert_eq!(filter2.name, "log-request");
                 assert!(filter2.args.is_empty(), "Args should be empty");
             }
@@ -687,8 +872,10 @@ mod tests {
 
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
-                assert_eq!(named_chain.chain.filters.len(), 1);
-                let filter = &named_chain.chain.filters[0];
+                assert_eq!(named_chain.chain.items.len(), 1);
+                let ChainItem::Filter(filter) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
                 assert_eq!(filter.name, "logger");
                 let level_arg = filter.args.get("level").expect("Argument 'level' missing");
                 assert_eq!(level_arg, "debug");
@@ -725,9 +912,15 @@ mod tests {
 
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
-                assert_eq!(named_chain.chain.filters.len(), 2);
-                assert_eq!(named_chain.chain.filters[0].name, "block-ip");
-                assert_eq!(named_chain.chain.filters[1].name, "auth-check");
+                assert_eq!(named_chain.chain.items.len(), 2);
+                let ChainItem::Filter(filter1) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
+                assert_eq!(filter1.name, "block-ip");
+                let ChainItem::Filter(filter2) = &named_chain.chain.items[1] else {
+                    unreachable!()
+                };
+                assert_eq!(filter2.name, "auth-check");
             }
         }
     }
@@ -774,9 +967,15 @@ mod tests {
 
         assert_eq!(api_upstream.chains.len(), 2);
         let Modificator::Chain(r1) = &api_upstream.chains[0];
-        assert_eq!(r1.chain.filters[0].name, "logger");
+        let ChainItem::Filter(filter) = &r1.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter.name, "logger");
         let Modificator::Chain(r2) = &api_upstream.chains[1];
-        assert_eq!(r2.chain.filters[0].name, "rate-limit");
+        let ChainItem::Filter(filter) = &r2.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter.name, "rate-limit");
 
         let public_upstream = connectors.upstreams.iter()
             .find(|u| match &u.upstream {
@@ -787,7 +986,10 @@ mod tests {
 
         assert_eq!(public_upstream.chains.len(), 1);
         let Modificator::Chain(r1) = &public_upstream.chains[0];
-        assert_eq!(r1.chain.filters[0].name, "logger");
+        let ChainItem::Filter(filter) = &r1.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter.name, "logger");
     }
 
     const DEFS_MULTI: &str = r#"
@@ -818,9 +1020,15 @@ mod tests {
         assert_eq!(upstream.chains.len(), 2);
 
         let Modificator::Chain(r) = &upstream.chains[0];
-        assert_eq!(r.chain.filters[0].name, "A");
+        let ChainItem::Filter(filter) = &r.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter.name, "A");
         let Modificator::Chain(r) = &upstream.chains[1];
-        assert_eq!(r.chain.filters[0].name, "B");
+        let ChainItem::Filter(filter) = &r.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter.name, "B");
     }
 
     const DEFS_MISSING: &str = r#"

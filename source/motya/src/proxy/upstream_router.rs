@@ -3,7 +3,7 @@ use matchit::{InsertError, Router};
 use pingora::{prelude::HttpPeer, ErrorType};
 
 use crate::proxy::{
-    balancer::key_selector::Balancer,
+    balancer::Balancer,
     context::{ContextInfo, SessionInfo},
     filters::chain_resolver::RuntimeChain,
 };

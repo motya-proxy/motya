@@ -4,7 +4,8 @@ use fqdn::FQDN;
 
 use crate::common_types::{
     builtin_filters_name::load_definitions_table,
-    definitions::{FilterChain, KeyTemplateConfig, PluginDefinition},
+    definitions::{BalancerConfig, FilterChain, PluginDefinition},
+    rate_limiter::{RateLimitPolicy, StorageConfig},
 };
 
 /// Definitions Table (Intermediate Representation).
@@ -59,37 +60,77 @@ pub struct DefinitionsTable {
     /// Profiles can be referenced by name in `selection` blocks via `use-key-profile`.
     /// Anonymous profiles are automatically generated for inline key specifications
     /// in connectors and stored with auto-generated names like `__anon_key_0`.
-    key_templates: HashMap<String, KeyTemplateConfig>,
+    key_templates: HashMap<String, BalancerConfig>,
+
+    rate_storages: HashMap<String, StorageConfig>,
+
+    rate_policies: HashMap<String, RateLimitPolicy>,
 }
 
 impl DefinitionsTable {
+    pub fn new_with_global() -> Self {
+        load_definitions_table()
+    }
+
     pub fn new(
         available_filters: HashSet<FQDN>,
         chains: HashMap<String, FilterChain>,
         plugins: HashMap<FQDN, PluginDefinition>,
-        key_profiles: HashMap<String, KeyTemplateConfig>,
+        key_profiles: HashMap<String, BalancerConfig>,
+        rate_storages: HashMap<String, StorageConfig>,
+        rate_policies: HashMap<String, RateLimitPolicy>,
     ) -> Self {
         Self {
             available_filters,
             chains,
             plugins,
             key_templates: key_profiles,
+            rate_storages,
+            rate_policies,
         }
     }
 
-    pub fn new_with_global() -> Self {
-        load_definitions_table()
+    pub fn get_rate_limit(&self, name: &str) -> Option<RateLimitPolicy> {
+        self.rate_policies.get(name).cloned()
+    }
+
+    pub fn has_rate_storage(&self, name: &str) -> bool {
+        self.rate_storages.contains_key(name)
+    }
+
+    pub fn get_storages(&self) -> &HashMap<String, StorageConfig> {
+        &self.rate_storages
+    }
+
+    pub fn get_storage_by_name(&self, name: &str) -> Option<StorageConfig> {
+        self.rate_storages.get(name).cloned()
     }
 
     pub fn get_chain_by_name(&self, name: &str) -> Option<FilterChain> {
         self.chains.get(name).cloned()
     }
 
+    pub fn insert_rate_limit(
+        &mut self,
+        name: String,
+        rate_policy: RateLimitPolicy,
+    ) -> Option<RateLimitPolicy> {
+        self.rate_policies.insert(name, rate_policy)
+    }
+
+    pub fn insert_storage(
+        &mut self,
+        name: String,
+        storage: StorageConfig,
+    ) -> Option<StorageConfig> {
+        self.rate_storages.insert(name, storage)
+    }
+
     pub fn insert_key_profile(
         &mut self,
         name: String,
-        profile: KeyTemplateConfig,
-    ) -> Option<KeyTemplateConfig> {
+        profile: BalancerConfig,
+    ) -> Option<BalancerConfig> {
         self.key_templates.insert(name, profile)
     }
 
@@ -126,7 +167,7 @@ impl DefinitionsTable {
     pub fn get_chains(&self) -> &HashMap<String, FilterChain> {
         &self.chains
     }
-    pub fn get_key_templates(&self) -> &HashMap<String, KeyTemplateConfig> {
+    pub fn get_key_templates(&self) -> &HashMap<String, BalancerConfig> {
         &self.key_templates
     }
 

@@ -11,6 +11,7 @@ mod tests {
     use motya::fs_adapter::TokioFs;
     use motya::proxy::filters::{chain_resolver::ChainResolver, registry::FilterRegistry};
     use motya::proxy::motya_proxy_service;
+    use motya::proxy::rate_limiter::registry::StorageRegistry;
     use motya::proxy::upstream_factory::UpstreamFactory;
     use motya::proxy::watcher::file_watcher::ConfigWatcher;
     use motya_config::common_types::definitions_table::DefinitionsTable;
@@ -34,7 +35,7 @@ mod tests {
         match client.get(&url).send().await {
             Ok(resp) => {
                 // We accept 200 and 500 (used in Stage 2) as valid responses for verification
-                
+
                 if resp.status().is_success() || resp.status().as_u16() == 500 {
                     resp.text().await.ok()
                 } else {
@@ -50,7 +51,7 @@ mod tests {
             loop {
                 let current_body = get_response_body(port, path).await;
                 let expected_owned = expected_body.map(|s| s.to_string());
-                
+
                 if current_body == expected_owned {
                     return;
                 }
@@ -138,9 +139,13 @@ mod tests {
             .expect("Config should be present");
 
         let registry = Arc::new(Mutex::new(FilterRegistry::default()));
-        let resolver = ChainResolver::new(definitions.clone(), registry)
-            .await
-            .unwrap();
+        let resolver = ChainResolver::new(
+            definitions.clone(),
+            registry,
+            Arc::new(StorageRegistry::default()),
+        )
+        .await
+        .unwrap();
         let factory = UpstreamFactory::new(resolver.clone());
 
         // Start the real Pingora server in background

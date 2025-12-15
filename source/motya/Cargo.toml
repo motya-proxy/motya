@@ -54,6 +54,9 @@ uuid = { version = "1.19.0", features = ["v4"] }
 xxhash-rust = { version = "0.8", features = ["xxh32", "xxh64"] }
 murmur3 = "0.5"
 fnv = "1.0"
+moka = { version = "0.12.11", features = ["future"]}
+smallvec = "1.15.1"
+cookie = "0.18.1"
 
 [dev-dependencies]
 tempfile = { workspace = true }

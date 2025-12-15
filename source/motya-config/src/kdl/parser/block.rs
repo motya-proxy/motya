@@ -127,7 +127,6 @@ impl<'a> BlockParser<'a> {
     where
         F: FnOnce(ParseContext<'a>, &str) -> Result<T>,
     {
-        // 1. Filter the list of names to find which ones are actually present in the children map
         let present_keys: Vec<&str> = names
             .iter()
             .filter(|&&name| self.children.contains_key(name))
@@ -138,12 +137,10 @@ impl<'a> BlockParser<'a> {
             return Ok(None);
         }
 
-        // 2. Check for conflicts (mutually exclusive directives)
         if present_keys.len() > 1 {
             let key1 = present_keys[0];
             let key2 = present_keys[1];
 
-            // Get the node context for the second key to point the error at it
             let node2 = &self.children[key2][0];
 
             return Err(node2.error(format!(
@@ -151,14 +148,9 @@ impl<'a> BlockParser<'a> {
             )));
         }
 
-        // 3. Process the single found key
-        // We reuse `self.optional` to handle the "single instance vs duplicate" check logic
         let matched_key = present_keys[0];
 
-        self.optional(matched_key, |ctx| {
-            // Pass both context and the key name to the closure
-            f(ctx, matched_key)
-        })
+        self.optional(matched_key, |ctx| f(ctx, matched_key))
     }
     pub fn exhaust(self) -> Result<()> {
         if let Some((name, nodes)) = self.children.into_iter().next() {

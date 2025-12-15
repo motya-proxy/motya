@@ -158,6 +158,7 @@ mod tests {
     use super::*;
     use crate::proxy::{
         filters::{chain_resolver::ChainResolver, registry::FilterRegistry},
+        rate_limiter::registry::StorageRegistry,
         ArcSwap,
     };
     use motya_config::common_types::{
@@ -216,10 +217,14 @@ mod tests {
         let mock_loader = MockConfigLoader::new(new_proxy_config.clone());
         let table = DefinitionsTable::default();
         let registry = Arc::new(Mutex::new(FilterRegistry::default()));
-        let resolver = ChainResolver::new(table.clone(), registry.clone())
-            .await
-            .unwrap();
+        let storage_registry = Arc::new(StorageRegistry::default());
+        let resolver =
+            ChainResolver::new(table.clone(), registry.clone(), storage_registry.clone())
+                .await
+                .unwrap();
+
         let factory = UpstreamFactory::new(resolver);
+
         //dummy type
         let mut watcher: ConfigWatcher<FileCollector<TokioFs>, MockConfigLoader> =
             ConfigWatcher::new(

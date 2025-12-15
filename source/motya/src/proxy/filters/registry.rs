@@ -78,10 +78,11 @@ mod tests {
     use crate::proxy::filters::registry::{
         FilterInstance, FilterRegistry, RegistryFilterContainer,
     };
+    use crate::proxy::rate_limiter::registry::StorageRegistry;
     use crate::proxy::MotyaContext;
     use crate::proxy::{RequestFilterMod, RequestModifyMod};
     use fqdn::FQDN;
-    use motya_config::common_types::definitions::{ConfiguredFilter, FilterChain};
+    use motya_config::common_types::definitions::{ChainItem, ConfiguredFilter, FilterChain};
     use motya_config::common_types::definitions_table::DefinitionsTable;
     use pingora::Result;
     use pingora_proxy::Session;
@@ -188,23 +189,27 @@ mod tests {
         header_args.insert("value".to_string(), "Bar".to_string());
 
         let filters = vec![
-            ConfiguredFilter {
+            ChainItem::Filter(ConfiguredFilter {
                 name: FQDN::from_str("motya.sec.block").unwrap(),
                 args: HashMap::new(),
-            },
-            ConfiguredFilter {
+            }),
+            ChainItem::Filter(ConfiguredFilter {
                 name: FQDN::from_str("motya.req.add_header").unwrap(),
                 args: header_args,
-            },
+            }),
         ];
 
-        definitions_table.insert_chain("main_pipeline".to_string(), FilterChain { filters });
+        definitions_table.insert_chain("main_pipeline".to_string(), FilterChain { items: filters });
 
         let registry = setup_registry();
 
-        let resolver = ChainResolver::new(definitions_table, Arc::new(registry.into()))
-            .await
-            .unwrap();
+        let resolver = ChainResolver::new(
+            definitions_table,
+            Arc::new(registry.into()),
+            Arc::new(StorageRegistry::default()),
+        )
+        .await
+        .unwrap();
 
         let chain = resolver
             .resolve("main_pipeline")
@@ -232,7 +237,12 @@ mod tests {
 
         let registry = setup_registry();
 
-        let res = ChainResolver::new(definitions_table, Arc::new(registry.into())).await;
+        let res = ChainResolver::new(
+            definitions_table,
+            Arc::new(registry.into()),
+            Arc::new(StorageRegistry::default()),
+        )
+        .await;
 
         assert!(res.is_err());
         let err_msg = res.err().unwrap().to_string();
@@ -261,16 +271,20 @@ mod tests {
         table.insert_chain(
             "test",
             FilterChain {
-                filters: vec![ConfiguredFilter {
+                items: vec![ChainItem::Filter(ConfiguredFilter {
                     name: FQDN::from_str("motya.always_fail").unwrap(),
                     args: HashMap::new(),
-                }],
+                })],
             },
         );
 
-        let resolver = ChainResolver::new(table, Arc::new(reg.into()))
-            .await
-            .unwrap();
+        let resolver = ChainResolver::new(
+            table,
+            Arc::new(reg.into()),
+            Arc::new(StorageRegistry::default()),
+        )
+        .await
+        .unwrap();
         let err = resolver.resolve("test").await.err().unwrap();
 
         assert!(err

@@ -38,17 +38,6 @@ impl<'a> TypedName<'a> {
             ))
         })
     }
-
-    pub fn as_type<T>(self) -> Result<T>
-    where
-        T: FromStr,
-        T::Err: std::fmt::Display,
-    {
-        T::from_str(self.raw).map_err(|e| {
-            self.ctx
-                .error(format!("Invalid node name '{}': {}", self.raw, e))
-        })
-    }
 }
 
 impl<'a> ParseContext<'a> {

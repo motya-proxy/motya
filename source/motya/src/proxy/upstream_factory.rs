@@ -14,13 +14,15 @@ use motya_config::{
     common_types::{
         connectors::{MultiServerUpstreamConfig, UpstreamConfig, UpstreamContextConfig},
         definitions::Modificator,
+        key_template::HashOp,
     },
     internal::{SelectionKind, UpstreamOptions},
 };
 
 use crate::proxy::{
-    balancer::key_selector::{Balancer, BalancerType, KeySelector},
+    balancer::{Balancer, BalancerType},
     filters::chain_resolver::ChainResolver,
+    key_selector::KeySelector,
     upstream_router::UpstreamContext,
 };
 
@@ -115,6 +117,12 @@ fn setup_balancer(
     .expect("static should not block")
     .expect("static should not error");
 
+    let alg = lb_options
+        .template
+        .as_ref()
+        .map(|cfg| cfg.algorithm.clone())
+        .unwrap_or(HashOp::XxHash64(0));
+
     Ok(Some(Balancer {
         selector: lb_options
             .template
@@ -122,5 +130,6 @@ fn setup_balancer(
             .transpose()
             .map_err(|err| miette!("{err}"))?,
         balancer_type,
+        hasher: alg,
     }))
 }

@@ -10,6 +10,7 @@ use motya::{
     proxy::{
         filters::{chain_resolver::ChainResolver, generate_registry::load_registry},
         motya_proxy_service,
+        rate_limiter::registry::StorageRegistry,
     },
 };
 use pingora::{prelude::HttpPeer, server::Server};
@@ -19,7 +20,7 @@ use fqdn::fqdn;
 use motya_config::{
     common_types::{
         connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig, ALPN},
-        definitions::{ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
+        definitions::{ChainItem, ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         listeners::{ListenerConfig, ListenerKind, Listeners},
     },
@@ -39,17 +40,21 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
     let registry = load_registry(&mut definitions_table);
 
     let chain = FilterChain {
-        filters: vec![ConfiguredFilter {
+        items: vec![ChainItem::Filter(ConfiguredFilter {
             name: fqdn!("motya.filters.block-cidr-range"),
             args: HashMap::from([("addrs".to_string(), "127.0.0.0/8".to_string())]),
-        }],
+        })],
     };
 
     definitions_table.insert_chain("block-noob", chain.clone());
 
-    let resolver = ChainResolver::new(definitions_table, Arc::new(registry.into()))
-        .await
-        .unwrap();
+    let resolver = ChainResolver::new(
+        definitions_table,
+        Arc::new(registry.into()),
+        Arc::new(StorageRegistry::default()),
+    )
+    .await
+    .unwrap();
 
     let config = Config::default();
 
@@ -123,17 +128,21 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
     let registry = load_registry(&mut definitions_table);
 
     let chain = FilterChain {
-        filters: vec![ConfiguredFilter {
+        items: vec![ChainItem::Filter(ConfiguredFilter {
             name: fqdn!("motya.filters.block-cidr-range"),
             args: HashMap::from([("addrs".to_string(), "10.0.0.0/8".to_string())]),
-        }],
+        })],
     };
 
     definitions_table.insert_chain("block-noob", chain.clone());
 
-    let resolver = ChainResolver::new(definitions_table, Arc::new(registry.into()))
-        .await
-        .unwrap();
+    let resolver = ChainResolver::new(
+        definitions_table,
+        Arc::new(registry.into()),
+        Arc::new(StorageRegistry::default()),
+    )
+    .await
+    .unwrap();
 
     let config = Config::default();
 

@@ -63,7 +63,9 @@ impl<Fs: AsyncFs> FileCollector<Fs> {
 
         let mut block = BlockParser::new(ParseContext::new(&doc, Current::Document(&doc), &name))?;
 
-        let raw_includes = block.optional("includes", |ctx| IncludesSection.parse_node(ctx))?.unwrap_or(vec![]);
+        let raw_includes = block
+            .optional("includes", |ctx| IncludesSection.parse_node(ctx))?
+            .unwrap_or(vec![]);
 
         let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
 

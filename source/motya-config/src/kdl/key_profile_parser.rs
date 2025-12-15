@@ -1,70 +1,69 @@
 use crate::{
-    common_types::definitions::{HashAlgorithm, KeyTemplateConfig, Transform},
-    kdl::parser::{block::BlockParser, ctx::ParseContext},
+    block_parser,
+    common_types::{
+        definitions::BalancerConfig,
+        key_template::{
+            parse_hasher, parse_transform, HashAlgorithm, HashOp, KeyTemplate, Transform,
+        },
+    },
+    kdl::{
+        key_template::KeyTemplateParser,
+        parser::{
+            block::BlockParser,
+            ctx::ParseContext,
+            ensures::Rule,
+            utils::{OptionTypedValueExt, PrimitiveType},
+        },
+        transforms_order::TransformsOrderParser,
+    },
 };
 
 pub struct KeyProfileParser;
 
 impl KeyProfileParser {
-    pub fn parse(&self, ctx: ParseContext<'_>) -> miette::Result<KeyTemplateConfig> {
-        let mut block = BlockParser::new(ctx)?;
+    pub fn parse(&self, ctx: ParseContext<'_>) -> miette::Result<BalancerConfig> {
+        block_parser!(ctx,
+            key: required("key") => |ctx| KeyTemplateParser.parse(ctx),
+            transforms: optional("transforms-order") => |ctx| TransformsOrderParser.parse(ctx),
+            algorithm: optional("algorithm") => |ctx| self.parse_hash_alg(ctx)
+        );
 
-        let (source, fallback) = block.required("key", |ctx| {
-            let source = ctx.first()?.as_str()?;
+        let (source, fallback) = key;
 
-            let fallback = ctx
-                .args_map_with_only_keys(1.., &["fallback"])?
-                .get("fallback")
-                .map(|s| s.to_string());
+        let transforms = transforms.unwrap_or_default();
 
-            Ok((source, fallback))
-        })?;
+        let algorithm = algorithm.unwrap_or(HashOp::XxHash64(0));
 
-        let algorithm = block
-            .optional("algorithm", |c| {
-                let opts = c.args_map_with_only_keys(.., &["name", "seed"])?;
-
-                Ok(HashAlgorithm {
-                    name: opts.get("name").unwrap_or(&"xxhash64").to_string(),
-                    seed: opts.get("seed").map(|s| s.to_string()),
-                })
-            })?
-            .unwrap_or_else(|| HashAlgorithm {
-                name: "xxhash64".to_string(),
-                seed: None,
-            });
-
-        let transforms = block
-            .optional("transforms-order", |c| {
-                let mut steps = Vec::new();
-                for step_ctx in c.nodes()? {
-                    let name = step_ctx.name().unwrap_or("").to_string();
-                    let params = step_ctx
-                        .args_map(..)?
-                        .into_iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect();
-
-                    steps.push(Transform { name, params });
-                }
-                Ok(steps)
-            })?
-            .unwrap_or_default();
-
-        block.exhaust()?;
-
-        Ok(KeyTemplateConfig {
+        Ok(BalancerConfig {
             source,
             fallback,
             algorithm,
             transforms,
         })
     }
+
+    fn parse_hash_alg(&self, ctx: ParseContext<'_>) -> Result<HashOp, miette::Error> {
+        ctx.validate(&[
+            Rule::NoChildren,
+            Rule::OnlyKeysTyped(&[
+                ("name", PrimitiveType::String),
+                ("seed", PrimitiveType::Integer),
+            ]),
+        ])?;
+
+        let [name, seed] = ctx.props(["name", "seed"])?;
+        let name = name.as_str()?.unwrap_or("xxhash64".to_string());
+        let seed = seed.as_usize()?.unwrap_or(0);
+
+        let alg = HashAlgorithm { name, seed };
+
+        parse_hasher(&alg).map_err(|err| ctx.error(format!("Failed to parse algorithm: '{err}'")))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::kdl::parser::ctx::Current;
+    use crate::{common_types::key_template::TransformOp, kdl::parser::ctx::Current};
 
     use super::*;
     use kdl::KdlDocument;
@@ -72,8 +71,8 @@ mod tests {
     #[test]
     fn test_parse_key_profile() {
         let kdl_input = r#"
-            key "${cookie_session}" fallback="${client_ip}:${user_agent}"
-            algorithm name="xxhash32" seed="idk"
+            key "${uri-path}" fallback="${client-ip}:${user-agent}"
+            algorithm name="xxhash32" seed=0
             transforms-order {
                 remove-query-params
                 lowercase
@@ -86,36 +85,39 @@ mod tests {
         let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
         let template = KeyProfileParser.parse(ctx).expect("Should parse");
 
-        assert_eq!(template.source, "${cookie_session}");
         assert_eq!(
-            template.fallback.as_deref(),
-            Some("${client_ip}:${user_agent}")
+            template.source,
+            "${uri-path}".parse::<KeyTemplate>().unwrap()
         );
-        assert_eq!(template.algorithm.name, "xxhash32");
-        assert_eq!(template.algorithm.seed.as_deref(), Some("idk"));
+        assert_eq!(
+            template.fallback,
+            Some("${client-ip}:${user-agent}".parse::<KeyTemplate>().unwrap())
+        );
+        assert_eq!(template.algorithm, HashOp::XxHash32(0));
 
         assert_eq!(template.transforms.len(), 3);
-        assert_eq!(template.transforms[0].name, "remove-query-params");
-        assert_eq!(template.transforms[1].name, "lowercase");
-        assert_eq!(template.transforms[2].name, "truncate");
+        assert_eq!(template.transforms[0], TransformOp::RemoveQueryParams);
+        assert_eq!(template.transforms[1], TransformOp::Lowercase);
         assert_eq!(
-            template.transforms[2].params.get("length"),
-            Some(&"256".to_string())
+            template.transforms[2],
+            TransformOp::Truncate { length: 256 }
         );
     }
 
     #[test]
     fn test_parse_minimal_profile() {
-        let kdl_input = r#"key "${uri_path}""#;
+        let kdl_input = r#"key "${uri-path}""#;
         let doc: KdlDocument = kdl_input.parse().unwrap();
 
         let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
         let template = KeyProfileParser.parse(ctx).unwrap();
 
-        assert_eq!(template.source, "${uri_path}");
+        assert_eq!(
+            template.source,
+            "${uri-path}".parse::<KeyTemplate>().unwrap()
+        );
         assert!(template.fallback.is_none());
-        assert_eq!(template.algorithm.name, "xxhash64");
-        assert!(template.algorithm.seed.is_none());
+        assert_eq!(template.algorithm, HashOp::XxHash64(0));
         assert!(template.transforms.is_empty());
     }
 

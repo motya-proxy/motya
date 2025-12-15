@@ -3,6 +3,7 @@ use motya::fs_adapter::TokioFs;
 use motya::proxy::filters::chain_resolver::ChainResolver;
 use motya::proxy::filters::generate_registry::load_registry;
 use motya::proxy::motya_proxy_service;
+use motya::proxy::rate_limiter::registry::StorageRegistry;
 use motya_config::common_types::definitions_table::DefinitionsTable;
 use motya_config::internal::Config;
 use motya_config::kdl::fs_loader::FileCollector;
@@ -83,9 +84,13 @@ async fn start_server_from_config_path(config_path: &std::path::Path) -> thread:
         .unwrap()
         .unwrap();
 
-    let resolver = ChainResolver::new(definitions_table.clone(), Arc::new(registry.into()))
-        .await
-        .unwrap();
+    let resolver = ChainResolver::new(
+        definitions_table.clone(),
+        Arc::new(registry.into()),
+        Arc::new(StorageRegistry::default()),
+    )
+    .await
+    .unwrap();
 
     let proxy = config.basic_proxies.first().cloned().unwrap();
 

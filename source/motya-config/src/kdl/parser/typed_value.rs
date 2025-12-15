@@ -5,7 +5,7 @@ use miette::Result;
 
 use crate::kdl::parser::{ctx::ParseContext, utils::get_simple_type_name};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct TypedValue<'a> {
     ctx: &'a ParseContext<'a>,
     entry: &'a KdlEntry,
@@ -16,7 +16,52 @@ impl<'a> TypedValue<'a> {
         Self { ctx, entry }
     }
 
+    pub fn name(&self) -> Option<&str> {
+        self.entry.name().map(|n| n.value())
+    }
+
+    fn try_resolve_variable(&self) -> Result<Option<String>> {
+        let type_anno = match self.entry.ty() {
+            Some(t) => t.value(),
+            None => return Ok(None),
+        };
+
+        if !matches!(type_anno, "env" | "var") {
+            return Ok(None);
+        }
+
+        let var_key = self.entry.value().as_string().ok_or_else(|| {
+            self.ctx.error_with_span(
+                format!(
+                    "Variable key must be a string (e.g. ({})\"KEY\"), found {:?}",
+                    type_anno,
+                    self.entry.value()
+                ),
+                self.entry.span(),
+            )
+        })?;
+
+        let registry = self.ctx.registry.as_ref().ok_or_else(|| {
+            self.ctx.error_with_span(
+                "Variables are not supported in this context (registry missing)",
+                self.entry.span(),
+            )
+        })?;
+
+        match registry.resolve(var_key, type_anno) {
+            Some(val) => Ok(Some(val)),
+            None => Err(self.ctx.error_with_span(
+                format!("Variable '{}' not found in source '{}'", var_key, type_anno),
+                self.entry.span(),
+            )),
+        }
+    }
+
     pub fn as_str(self) -> Result<String> {
+        if let Some(resolved) = self.try_resolve_variable()? {
+            return Ok(resolved);
+        }
+
         self.entry
             .value()
             .as_string()
@@ -30,6 +75,15 @@ impl<'a> TypedValue<'a> {
     }
 
     pub fn as_usize(self) -> Result<usize> {
+        if let Some(resolved) = self.try_resolve_variable()? {
+            return resolved.parse::<usize>().map_err(|e| {
+                self.ctx.error_with_span(
+                    format!("Failed to parse resolved variable '{resolved}' as usize: {e}"),
+                    self.entry.span(),
+                )
+            });
+        }
+
         self.entry
             .value()
             .as_integer()
@@ -46,6 +100,15 @@ impl<'a> TypedValue<'a> {
     }
 
     pub fn as_bool(self) -> Result<bool> {
+        if let Some(resolved) = self.try_resolve_variable()? {
+            return resolved.parse::<bool>().map_err(|e| {
+                self.ctx.error_with_span(
+                    format!("Failed to parse resolved variable '{resolved}' as bool: {e}"),
+                    self.entry.span(),
+                )
+            });
+        }
+
         self.entry.value().as_bool().ok_or_else(|| {
             self.ctx.error_with_span(
                 format!("Expected a boolean, found {:?}", self.entry.value()),
@@ -70,6 +133,10 @@ impl<'a> TypedValue<'a> {
     }
 
     pub fn as_string_lossy(self) -> Result<String> {
+        if let Some(resolved) = self.try_resolve_variable()? {
+            return Ok(resolved);
+        }
+
         match self.entry.value() {
             KdlValue::String(s) => Ok(s.clone()),
             KdlValue::Integer(i) => Ok(i.to_string()),
@@ -114,6 +181,32 @@ impl<'a> ParseContext<'a> {
             })?;
 
         Ok(TypedValue::new(self, entry))
+    }
+
+    pub fn args_named_typed<'b>(&'a self) -> Result<Vec<TypedValue<'b>>>
+    where
+        'a: 'b,
+    {
+        let entries = self
+            .args_typed()?
+            .into_iter()
+            .filter(|e| e.name().is_some())
+            .collect();
+
+        Ok(entries)
+    }
+
+    pub fn args_typed<'b>(&'a self) -> Result<Vec<TypedValue<'b>>>
+    where
+        'a: 'b,
+    {
+        let entries = self
+            .args()?
+            .iter()
+            .map(|entry| TypedValue::new(self, entry))
+            .collect();
+
+        Ok(entries)
     }
 
     pub fn prop<'b>(&'a self, key: &str) -> Result<TypedValue<'b>>

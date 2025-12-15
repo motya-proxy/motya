@@ -1,10 +1,12 @@
 use std::net::IpAddr;
 
+use cookie::Cookie;
 use http::uri::PathAndQuery;
 use pingora_http::RequestHeader;
 
-use crate::proxy::balancer::key_selector::KeySourceContext;
 use pingora::protocols::l4::socket::SocketAddr;
+
+use crate::proxy::key_selector::KeySourceContext;
 
 pub struct SessionInfo<'a> {
     pub headers: &'a RequestHeader,
@@ -14,25 +16,25 @@ pub struct SessionInfo<'a> {
 
 pub struct ContextInfo {}
 
-impl KeySourceContext for SessionInfo<'_> {
+impl<'a> KeySourceContext for SessionInfo<'a> {
     fn get_path(&self) -> &PathAndQuery {
         self.path
     }
 
-    fn get_cookie(&self, name: &str) -> Option<&str> {
-        for header_value in self.headers.headers.get_all("cookie") {
-            let s = header_value.to_str().ok()?;
+    fn get_cookie(&self, name: &str) -> Option<Cookie<'_>> {
+        let header_value = self.headers.headers.get("cookie")?;
 
-            for part in s.split(';') {
-                let part = part.trim();
+        let cookie_str = header_value.to_str().ok()?;
 
-                if let Some(rest) = part.strip_prefix(name) {
-                    if let Some(value) = rest.strip_prefix('=') {
-                        return Some(value);
-                    }
+        for cookie_pair in cookie_str.split(';') {
+            let trimmed_pair = cookie_pair.trim();
+            if let Ok(cookie) = Cookie::parse(trimmed_pair) {
+                if cookie.name() == name {
+                    return Some(cookie);
                 }
             }
         }
+
         None
     }
 

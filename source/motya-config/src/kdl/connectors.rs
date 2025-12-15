@@ -13,7 +13,7 @@ use crate::{
             Connectors, ConnectorsLeaf, HttpPeerConfig, MultiServerUpstreamConfig, RouteMatcher,
             UpstreamConfig, UpstreamContextConfig, UpstreamServer, ALPN,
         },
-        definitions::{KeyTemplateConfig, Modificator, NamedFilterChain},
+        definitions::{BalancerConfig, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         section_parser::SectionParser,
         simple_response_type::SimpleResponseConfig,
@@ -116,7 +116,11 @@ impl<'a> ConnectorsSection<'a> {
         if ctx.has_children_block()? {
             ctx.validate(&[Rule::NoArgs])?;
 
-            let chain = ChainParser.parse(ctx.enter_block()?)?;
+            let chain = ChainParser.parse(
+                ctx.enter_block()?,
+                Some(&self.anon_counter),
+                Some(path.as_str()),
+            )?;
 
             let id = self.anon_counter.fetch_add(1, Ordering::Relaxed);
             let path_slug = path.path().replace('/', "_");
@@ -131,7 +135,7 @@ impl<'a> ConnectorsSection<'a> {
                 },
             )))
         } else {
-            ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1), Rule::OnlyKeys(&[])])?;
+            ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
 
             let name = ctx.first()?.as_str()?;
 
@@ -232,7 +236,9 @@ impl<'a> ConnectorsSection<'a> {
 
         let response_body = response.as_str()?.unwrap_or_default();
 
-        let http_code = code_opt.parse_as::<StatusCode>()?.ok_or(ctx.error("invalid http code"))?;
+        let http_code = code_opt
+            .parse_as::<StatusCode>()?
+            .ok_or(ctx.error("invalid http code"))?;
 
         Ok(ConnectorsLeaf::Upstream(UpstreamConfig::Static(
             SimpleResponseConfig {
@@ -270,12 +276,12 @@ impl<'a> ConnectorsSection<'a> {
             })?;
 
             let tls_sni = block.optional("tls-sni", |ctx| {
-                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1), Rule::OnlyKeys(&[])])?;
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
                 ctx.first()?.as_str()
             })?;
 
             let proto_str = block.optional("proto", |ctx| {
-                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1), Rule::OnlyKeys(&[])])?;
+                ctx.validate(&[Rule::NoChildren, Rule::ExactArgs(1)])?;
                 ctx.first()?.as_str()
             })?;
 
@@ -381,7 +387,7 @@ impl<'a> ConnectorsSection<'a> {
         &self,
         ctx: ParseContext<'_>,
         anonymous_definitions: &mut DefinitionsTable,
-    ) -> miette::Result<(SelectionKind, Option<KeyTemplateConfig>)> {
+    ) -> miette::Result<(SelectionKind, Option<BalancerConfig>)> {
         ctx.validate(&[
             Rule::ExactArgs(1),
             Rule::OnlyKeysTyped(&[("use-key-profile", PrimitiveType::String)]),
@@ -428,7 +434,7 @@ impl<'a> ConnectorsSection<'a> {
         selection_kind: SelectionKind,
         profile_ref: Option<String>,
         has_block: bool,
-    ) -> Result<(SelectionKind, Option<KeyTemplateConfig>), miette::Error> {
+    ) -> Result<(SelectionKind, Option<BalancerConfig>), miette::Error> {
         let key_source = match (profile_ref, has_block) {
             (Some(_), true) => {
                 return Err(ctx.error(
@@ -538,17 +544,19 @@ fn parse_proto_value(value: &str) -> Result<Option<ALPN>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kdl::KdlDocument;
-    use crate::kdl::parser::block::BlockParser;
-    use crate::kdl::definitions::DefinitionsSection;
     use crate::assert_err_contains;
+    use crate::common_types::definitions::ChainItem;
+    use crate::common_types::key_template::KeyTemplate;
+    use crate::kdl::definitions::DefinitionsSection;
+    use crate::kdl::parser::block::BlockParser;
     use crate::kdl::parser::ctx::Current;
+    use kdl::KdlDocument;
 
     /// Helper to parse config when no external definitions are needed
     fn parse_config(input: &str) -> miette::Result<Connectors> {
         let doc: KdlDocument = input.parse().unwrap();
         let table = DefinitionsTable::default();
-        
+
         let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
         let mut block = BlockParser::new(ctx)?;
 
@@ -563,16 +571,14 @@ mod tests {
         let defs_doc: KdlDocument = defs_input.parse().unwrap();
         let defs_ctx = ParseContext::new(&defs_doc, Current::Document(&defs_doc), "test");
         let mut defs_block = BlockParser::new(defs_ctx)?;
-        
-        let table = defs_block.required("definitions", |ctx| {
-            DefinitionsSection.parse_node(ctx)
-        })?;
+
+        let table = defs_block.required("definitions", |ctx| DefinitionsSection.parse_node(ctx))?;
 
         // 2. Parse connectors
         let conn_doc: KdlDocument = conn_input.parse().unwrap();
         let conn_ctx = ParseContext::new(&conn_doc, Current::Document(&conn_doc), "test");
         let mut conn_block = BlockParser::new(conn_ctx)?;
-        
+
         conn_block.required("connectors", |ctx| {
             ConnectorsSection::new(&table).parse_node(ctx)
         })
@@ -674,7 +680,10 @@ mod tests {
         assert!(lb_options.template.is_some());
 
         let template = lb_options.template.as_ref().unwrap();
-        assert_eq!(template.source, "amogus".to_string());
+        assert_eq!(
+            template.source,
+            "amogus".to_string().parse::<KeyTemplate>().unwrap()
+        );
     }
 
     const LOAD_BALANCE_HASH_WITHOUT_KEY_SOURCE: &str = r#"
@@ -932,7 +941,9 @@ mod tests {
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
                 assert!(named_chain.name.contains("__anon_"), "Should be anonymous");
-                let filter = &named_chain.chain.filters[0];
+                let ChainItem::Filter(filter) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
 
                 assert_eq!(filter.name, "rate-limit");
                 assert_eq!(filter.args.len(), 2);
@@ -944,9 +955,11 @@ mod tests {
         match &upstream.chains[1] {
             Modificator::Chain(named_chain) => {
                 assert_eq!(named_chain.name, "defined_with_args");
-                assert_eq!(named_chain.chain.filters.len(), 2);
+                assert_eq!(named_chain.chain.items.len(), 2);
 
-                let filter1 = &named_chain.chain.filters[0];
+                let ChainItem::Filter(filter1) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
                 assert_eq!(filter1.name, "set-header");
                 assert_eq!(filter1.args.len(), 2);
                 assert_eq!(
@@ -955,7 +968,9 @@ mod tests {
                 );
                 assert_eq!(filter1.args.get("value").map(|s| s.as_str()), Some("EU"));
 
-                let filter2 = &named_chain.chain.filters[1];
+                let ChainItem::Filter(filter2) = &named_chain.chain.items[1] else {
+                    unreachable!()
+                };
                 assert_eq!(filter2.name, "log-request");
                 assert!(filter2.args.is_empty(), "Args should be empty");
             }
@@ -980,8 +995,10 @@ mod tests {
 
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
-                assert_eq!(named_chain.chain.filters.len(), 1);
-                let filter = &named_chain.chain.filters[0];
+                assert_eq!(named_chain.chain.items.len(), 1);
+                let ChainItem::Filter(filter) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
                 assert_eq!(filter.name, "logger");
                 let level_arg = filter.args.get("level").expect("Argument 'level' missing");
                 assert_eq!(level_arg, "debug");
@@ -1018,9 +1035,16 @@ mod tests {
 
         match &upstream.chains[0] {
             Modificator::Chain(named_chain) => {
-                assert_eq!(named_chain.chain.filters.len(), 2);
-                assert_eq!(named_chain.chain.filters[0].name, "block-ip");
-                assert_eq!(named_chain.chain.filters[1].name, "auth-check");
+                assert_eq!(named_chain.chain.items.len(), 2);
+                let ChainItem::Filter(filter) = &named_chain.chain.items[0] else {
+                    unreachable!()
+                };
+
+                assert_eq!(filter.name, "block-ip");
+                let ChainItem::Filter(filter) = &named_chain.chain.items[1] else {
+                    unreachable!()
+                };
+                assert_eq!(filter.name, "auth-check");
             }
         }
     }
@@ -1067,9 +1091,15 @@ mod tests {
 
         assert_eq!(api_upstream.chains.len(), 2);
         let Modificator::Chain(r1) = &api_upstream.chains[0];
-        assert_eq!(r1.chain.filters[0].name, "logger");
+        let ChainItem::Filter(filter1) = &r1.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter1.name, "logger");
         let Modificator::Chain(r2) = &api_upstream.chains[1];
-        assert_eq!(r2.chain.filters[0].name, "rate-limit");
+        let ChainItem::Filter(filter2) = &r2.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter2.name, "rate-limit");
 
         let public_upstream = connectors.upstreams.iter()
             .find(|u| match &u.upstream {
@@ -1080,7 +1110,10 @@ mod tests {
 
         assert_eq!(public_upstream.chains.len(), 1);
         let Modificator::Chain(r1) = &public_upstream.chains[0];
-        assert_eq!(r1.chain.filters[0].name, "logger");
+        let ChainItem::Filter(filter1) = &r1.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter1.name, "logger");
     }
 
     const DEFS_MULTI: &str = r#"
@@ -1111,9 +1144,16 @@ mod tests {
         assert_eq!(upstream.chains.len(), 2);
 
         let Modificator::Chain(r) = &upstream.chains[0];
-        assert_eq!(r.chain.filters[0].name, "A");
+
+        let ChainItem::Filter(filter1) = &r.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter1.name, "A");
         let Modificator::Chain(r) = &upstream.chains[1];
-        assert_eq!(r.chain.filters[0].name, "B");
+        let ChainItem::Filter(filter2) = &r.chain.items[0] else {
+            unreachable!()
+        };
+        assert_eq!(filter2.name, "B");
     }
 
     const DEFS_MISSING: &str = r#"
@@ -1160,9 +1200,11 @@ mod tests {
         let ctx = ParseContext::new(&doc, Current::Document(&doc), "test");
         let mut block = BlockParser::new(ctx).unwrap();
 
-        let nodes = block.required("connectors", |ctx| {
-             ConnectorsSection::new(&table).parse_connections_node(ctx, &mut anon)
-        }).unwrap();
+        let nodes = block
+            .required("connectors", |ctx| {
+                ConnectorsSection::new(&table).parse_connections_node(ctx, &mut anon)
+            })
+            .unwrap();
 
         let ConnectorsLeaf::Upstream(UpstreamConfig::Service(first)) = &nodes[0] else {
             unreachable!()

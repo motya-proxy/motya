@@ -92,16 +92,13 @@ impl ConfigCompiler {
             .documents
             .iter()
             .try_fold(None, |acc, (doc, name)| {
-                let mut block = BlockParser::new(ParseContext::new(
-                    doc,
-                    Current::Document(doc),
-                    name,
-                ))?;
+                let mut block =
+                    BlockParser::new(ParseContext::new(doc, Current::Document(doc), name))?;
 
-                let parsed = block.optional("system", |ctx| {
-                    SystemDataSection.parse_node(ctx)
-                })?.flatten();
-                
+                let parsed = block
+                    .optional("system", |ctx| SystemDataSection.parse_node(ctx))?
+                    .flatten();
+
                 match (acc, parsed) {
                     (prev, None) => Ok(prev),
                     (None, Some(curr)) => Ok(Some(curr)),

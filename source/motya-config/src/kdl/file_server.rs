@@ -4,21 +4,15 @@ use kdl::KdlDocument;
 use motya_macro::validate;
 
 use crate::{
-    common_types::{
-        file_server::FileServerPartialConfig,
-        section_parser::SectionParser,
+    common_types::{file_server::FileServerPartialConfig, section_parser::SectionParser},
+    kdl::parser::{
+        ctx::ParseContext,
+        ensures::Rule,
+        utils::{OptionTypedValueExt, PrimitiveType},
     },
-    kdl::
-        parser::{
-            ctx::ParseContext,
-            ensures::Rule,
-            utils::{OptionTypedValueExt, PrimitiveType},
-        }
-    ,
 };
 
 pub struct FileServerSection<'a> {
-    doc: &'a KdlDocument,
     name: &'a str,
 }
 
@@ -41,7 +35,7 @@ impl SectionParser<ParseContext<'_>, FileServerPartialConfig> for FileServerSect
 }
 
 impl<'a> FileServerSection<'a> {
-    pub fn new(doc: &'a KdlDocument, name: &'a str) -> Self {
-        Self { doc, name }
+    pub fn new(name: &'a str) -> Self {
+        Self { name }
     }
 }

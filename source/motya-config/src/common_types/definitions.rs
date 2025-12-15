@@ -1,9 +1,20 @@
 use fqdn::FQDN;
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::common_types::{
+    key_template::{HashAlgorithm, HashOp, KeyTemplate, TransformOp},
+    rate_limiter::RateLimitPolicy,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChainItem {
+    Filter(ConfiguredFilter),
+    RateLimiter(RateLimitPolicy),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FilterChain {
-    pub filters: Vec<ConfiguredFilter>,
+    pub items: Vec<ChainItem>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,23 +36,11 @@ pub enum PluginSource {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeyTemplateConfig {
-    pub source: String,
-    pub fallback: Option<String>,
-    pub algorithm: HashAlgorithm,
-    pub transforms: Vec<Transform>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct HashAlgorithm {
-    pub name: String,
-    pub seed: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Transform {
-    pub name: String,
-    pub params: HashMap<String, String>,
+pub struct BalancerConfig {
+    pub source: KeyTemplate,
+    pub fallback: Option<KeyTemplate>,
+    pub algorithm: HashOp,
+    pub transforms: Vec<TransformOp>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

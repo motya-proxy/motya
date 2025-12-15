@@ -20,6 +20,7 @@ pub enum Rule<'a> {
     OnlyKeys(&'a [&'a str]),
     NoPositionalArgs,
     ExactArgs(usize),
+    AtLeastArgs(usize),
     Name(NamePredicate),
     OnlyKeysTyped(&'a [(&'a str, PrimitiveType)]),
 }
@@ -43,6 +44,7 @@ impl<'a> ParseContext<'a> {
                 Rule::Name(predicate) => self.ensure_name_matches(predicate)?,
                 Rule::OnlyKeysTyped(schema) => self.ensure_only_keys_typed(schema)?,
                 Rule::ExactArgs(n) => self.ensure_positional_args(*n, *n)?,
+                Rule::AtLeastArgs(n) => self.ensure_positional_args(*n, 256)?,
                 Rule::ReqChildren => self.ensure_req_children()?,
             }
         }
