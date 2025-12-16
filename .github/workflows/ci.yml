@@ -34,3 +34,79 @@ jobs:
           fallback: none
 
       - run: ./ci.sh
+
+  deploy:
+    name: Build WASM and Deploy Extension
+    needs: ubuntu
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Main WASM Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - name: Install vsce globally
+        run: npm install -g @vscode/vsce
+
+      - name: Build WASM
+        run: |
+          cd source/motya-vscode
+          wasm-pack build --target nodejs --out-dir ../../pkg
+      
+      - name: Checkout VSCode Extension Repo
+        uses: actions/checkout@v4
+        with:
+          
+          repository: ${{ github.repository_owner }}/motya-vscode-extension
+          path: extension-repo
+          
+          token: ${{ secrets.MOTYA_VSCODE_TOKEN }}
+
+      - name: Copy WASM Artifacts
+        run: |
+          mkdir -p extension-repo/dist
+          cp -r pkg/* extension-repo/dist/
+
+      - name: Commit and Push to Extension Repo
+        run: |
+          cd extension-repo
+          git config user.name "GitHub Actions Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: Auto update WASM module [skip ci]" || echo "No changes to commit"
+          git push
+
+
+      - name: Install vsce dependencies
+        run: |
+          cd extension-repo
+          npm install
+
+      - name: Bump Version and Commit
+        run: |
+          cd extension-repo
+          npm version patch --no-git-tag-version
+          git add package.json
+          git commit -m "chore: Bump version for WASM update"
+          git push
+
+      - name: Publish to VSCode Marketplace
+        run: |
+          cd extension-repo
+          vsce publish -p ${{ secrets.VSIX_PAT }}

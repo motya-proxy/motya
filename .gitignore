@@ -12,3 +12,4 @@ target/
 cargo-test-*
 code_cov.sh
 .vscode/*
+/pkg
