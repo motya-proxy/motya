@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/github/motya-proxy/motya/graph/badge.svg?token=974YSSXURU)](https://codecov.io/github/motya-proxy/motya)
+
 ## From River to Motya
 
 `Motya` started as a fork of the [River](https://github.com/memorysafety/river) project, but has since evolved into its own beast. 
