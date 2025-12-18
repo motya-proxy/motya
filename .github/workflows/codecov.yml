@@ -1,0 +1,49 @@
+name: codecov
+ 
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  codecov:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    
+    - name: Install Rust 
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2025-11-13
+        components: llvm-tools-preview
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Generate Coverage Report
+      run: |
+        cargo llvm-cov \
+          --lcov \
+          --branch \
+          --all-features \
+          --workspace \
+          --ignore-filename-regex='build.rs|tests/' \
+          --output-path lcov.info
+          
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./lcov.info
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
