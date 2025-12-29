@@ -1,9 +1,10 @@
 use fqdn::FQDN;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::common_types::{
-    key_template::{HashAlgorithm, HashOp, KeyTemplate, TransformOp},
+    key_template::{HashOp, KeyTemplate, TransformOp},
     rate_limiter::RateLimitPolicy,
+    value::Value,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,7 +21,7 @@ pub struct FilterChain {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ConfiguredFilter {
     pub name: FQDN,
-    pub args: HashMap<String, String>,
+    pub args: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

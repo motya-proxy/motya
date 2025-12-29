@@ -32,7 +32,7 @@ pub enum NamePredicate {
     Custom(fn(&str) -> bool, &'static str),
 }
 
-impl<'a> ParseContext<'a> {
+impl ParseContext {
     /// Applies a list of validation rules to the current context.
     pub fn validate(&self, rules: &[Rule]) -> Result<()> {
         for rule in rules {
@@ -153,7 +153,7 @@ impl<'a> ParseContext<'a> {
     }
 
     pub fn ensure_req_children(&self) -> Result<()> {
-        if !self.has_children_block()? {
+        if !self.has_children_block() {
             return Err(self.error(format!(
                 "Directive '{name}' requires a children block {{ ... }}",
                 name = self.name()?
@@ -164,7 +164,7 @@ impl<'a> ParseContext<'a> {
 
     /// Enforces that the node is a leaf (no children block).
     pub fn ensure_no_children(&self) -> Result<()> {
-        if self.has_children_block()? {
+        if self.has_children_block() {
             return Err(self.error(format!(
                 "Directive '{name}' must be a leaf node (no children block allowed)",
                 name = self.name()?

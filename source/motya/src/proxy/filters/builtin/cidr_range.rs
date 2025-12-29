@@ -2,11 +2,15 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use cidr::IpCidr;
-use pingora::{protocols::l4::socket::SocketAddr, Error, ErrorType, Result};
+use motya_config::common_types::value::Value;
+use pingora::{protocols::l4::socket::SocketAddr, Error, Result};
 use pingora_proxy::Session;
 
 use crate::proxy::{
-    filters::{builtin::helpers::extract_val, types::RequestFilterMod},
+    filters::{
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
+        types::RequestFilterMod,
+    },
     MotyaContext,
 };
 
@@ -15,25 +19,20 @@ pub struct CidrRangeFilter {
 }
 
 impl CidrRangeFilter {
-    /// Create from the settings field
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let mat = extract_val("addrs", &mut settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let addrs_raw = settings.take_val::<String>("addrs")?.required("addrs")?;
 
-        let addrs = mat.split(',');
-
-        let mut blocks = vec![];
-        for addr in addrs {
-            let addr = addr.trim();
-            match addr.parse::<IpCidr>() {
-                Ok(a) => {
-                    blocks.push(a);
-                }
-                Err(_) => {
-                    tracing::error!("Failed to parse '{addr}' as a valid CIDR notation range");
-                    return Err(Error::new(ErrorType::Custom("Invalid configuration")));
-                }
-            };
-        }
+        let blocks = addrs_raw
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                s.parse::<IpCidr>().map_err(|e| {
+                    tracing::error!("Failed to parse '{s}' as a valid CIDR: {e:?}");
+                    Error::new_str("Invalid configuration: Invalid CIDR notation")
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Self { blocks })
     }
@@ -72,7 +71,7 @@ mod tests {
         let mut settings = BTreeMap::new();
         settings.insert(
             "addrs".to_string(),
-            "192.168.0.0/16, 10.0.0.0/8".to_string(),
+            Value::String("192.168.0.0/16, 10.0.0.0/8".to_string()),
         );
 
         let filter =
@@ -91,7 +90,7 @@ mod tests {
         let mut settings = BTreeMap::new();
         settings.insert(
             "addrs".to_string(),
-            "10.0.0.0/8, 2001:db8::/32, ::1/128, 1.1.1.1/32".to_string(),
+            Value::String("10.0.0.0/8, 2001:db8::/32, ::1/128, 1.1.1.1/32".to_string()),
         );
 
         let filter =
@@ -111,7 +110,7 @@ mod tests {
         let mut settings = BTreeMap::new();
         settings.insert(
             "addrs".to_string(),
-            "192.168.0.0/16, not_a_cidr, 10.0.0.0/8".to_string(),
+            Value::String("192.168.0.0/16, not_a_cidr, 10.0.0.0/8".to_string()),
         );
 
         let result = CidrRangeFilter::from_settings(settings);

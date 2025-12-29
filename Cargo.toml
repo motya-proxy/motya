@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "source/motya",
-    "source/motya-config", "source/motya-macro", 
-    "source/motya-vscode",
+    "source/motya-config", 
+    "source/motya-macro",
     "source/tests"
 ]
 

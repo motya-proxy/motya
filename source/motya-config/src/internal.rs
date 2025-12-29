@@ -60,13 +60,11 @@ impl Config {
 //
 // Basic Proxy Configuration
 //
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProxyConfig {
     pub name: String,
     pub listeners: Listeners,
     pub connectors: Connectors,
-    // pub rate_limiting: RateLimitingConfig,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -3,11 +3,9 @@ use std::net::SocketAddr;
 
 use http::uri::PathAndQuery;
 
-use crate::common_types::{
-    definitions::Modificator, definitions_table::DefinitionsTable,
-    simple_response_type::SimpleResponseConfig,
-};
+use crate::common_types::{definitions::Modificator, simple_response_type::SimpleResponseConfig};
 use crate::internal::UpstreamOptions;
+use crate::kdl::parser::spanned::Spanned;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ALPN {
@@ -58,18 +56,17 @@ pub struct MultiServerUpstreamConfig {
     pub matcher: RouteMatcher,
 }
 
-#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug)]
 pub enum ConnectorsLeaf {
     Upstream(UpstreamConfig),
     Modificator(Modificator),
     LoadBalance(UpstreamOptions),
-    Section(Vec<ConnectorsLeaf>),
+    Section(Vec<Spanned<ConnectorsLeaf>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Connectors {
     pub upstreams: Vec<UpstreamContextConfig>,
-    pub anonymous_definitions: DefinitionsTable,
 }
 
 #[derive(Debug, Clone, PartialEq)]

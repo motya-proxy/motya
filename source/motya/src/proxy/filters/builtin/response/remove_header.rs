@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use motya_config::common_types::value::Value;
 use pingora::{Error, Result};
 use pingora_http::ResponseHeader;
 use pingora_proxy::Session;
@@ -7,7 +8,7 @@ use regex::Regex;
 
 use crate::proxy::{
     filters::{
-        builtin::helpers::{ensure_empty, extract_val},
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
         types::ResponseModifyMod,
     },
     MotyaContext,
@@ -18,17 +19,17 @@ pub struct RemoveHeaderKeyRegex {
 }
 
 impl RemoveHeaderKeyRegex {
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let mat = extract_val("pattern", &mut settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let pattern = settings
+            .take_val::<String>("pattern")?
+            .required("pattern")?;
 
-        let reg = Regex::new(&mat).map_err(|e| {
-            tracing::error!("Bad pattern: '{mat}': {e:?}");
+        let regex = Regex::new(&pattern).map_err(|e| {
+            tracing::error!("Bad pattern: '{pattern}': {e:?}");
             Error::new_str("Error building regex")
         })?;
 
-        ensure_empty(&settings)?;
-
-        Ok(Self { regex: reg })
+        Ok(Self { regex })
     }
 }
 

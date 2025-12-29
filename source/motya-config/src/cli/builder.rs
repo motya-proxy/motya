@@ -128,10 +128,7 @@ impl CliConfigBuilder {
             listeners: Listeners {
                 list_cfgs: vec![listener],
             },
-            connectors: Connectors {
-                upstreams,
-                anonymous_definitions: Default::default(),
-            },
+            connectors: Connectors { upstreams },
         };
 
         Ok(Config {

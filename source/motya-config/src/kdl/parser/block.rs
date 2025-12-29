@@ -2,15 +2,15 @@ use super::ctx::ParseContext;
 use miette::Result;
 use std::collections::HashMap;
 
-pub struct BlockParser<'a> {
-    ctx: ParseContext<'a>,
-    children: HashMap<String, Vec<ParseContext<'a>>>,
+pub struct BlockParser {
+    ctx: ParseContext,
+    children: HashMap<String, Vec<ParseContext>>,
 }
 
-impl<'a> BlockParser<'a> {
+impl BlockParser {
     /// Initializes the parser by consuming the children of the provided context.
-    pub fn new(ctx: ParseContext<'a>) -> Result<Self> {
-        let mut children: HashMap<String, Vec<ParseContext<'a>>> = HashMap::new();
+    pub fn new(ctx: ParseContext) -> Result<Self> {
+        let mut children: HashMap<String, Vec<ParseContext>> = HashMap::new();
 
         for child in ctx.nodes()? {
             let name = child.name()?;
@@ -22,9 +22,9 @@ impl<'a> BlockParser<'a> {
 
     /// Creates a BlockParser, passes it to the provided function,
     /// and ensures all directives are consumed (exhausted) after execution.
-    pub fn enter<F, T>(ctx: ParseContext<'a>, f: F) -> Result<T>
+    pub fn enter<F, T>(ctx: ParseContext, f: F) -> Result<T>
     where
-        F: FnOnce(&mut BlockParser<'a>) -> Result<T>,
+        F: FnOnce(&mut BlockParser) -> Result<T>,
     {
         let mut parser = Self::new(ctx)?;
         let result = f(&mut parser)?;
@@ -39,7 +39,7 @@ impl<'a> BlockParser<'a> {
     /// - The directive appears multiple times.
     pub fn required<T, F>(&mut self, name: &str, f: F) -> Result<T>
     where
-        F: FnOnce(ParseContext<'a>) -> Result<T>,
+        F: FnOnce(ParseContext) -> Result<T>,
     {
         self.optional(name, f)?.ok_or_else(|| {
             self.ctx
@@ -53,7 +53,7 @@ impl<'a> BlockParser<'a> {
     /// - The directive appears multiple times.
     pub fn optional<T, F>(&mut self, name: &str, f: F) -> Result<Option<T>>
     where
-        F: FnOnce(ParseContext<'a>) -> Result<T>,
+        F: FnOnce(ParseContext) -> Result<T>,
     {
         match self.children.remove(name) {
             Some(mut nodes) if nodes.len() == 1 => Ok(Some(f(nodes.pop().unwrap())?)),
@@ -70,7 +70,7 @@ impl<'a> BlockParser<'a> {
     /// - The directive is missing.
     pub fn required_repeated<T, F>(&mut self, name: &str, mut f: F) -> Result<Vec<T>>
     where
-        F: FnMut(ParseContext<'a>) -> Result<T>,
+        F: FnMut(ParseContext) -> Result<T>,
     {
         let results = self.repeated(name, &mut f)?;
 
@@ -87,7 +87,7 @@ impl<'a> BlockParser<'a> {
     /// Returns a vector of results.
     pub fn repeated<T, F>(&mut self, name: &str, mut f: F) -> Result<Vec<T>>
     where
-        F: FnMut(ParseContext<'a>) -> Result<T>,
+        F: FnMut(ParseContext) -> Result<T>,
     {
         let mut results = Vec::new();
         if let Some(nodes) = self.children.remove(name) {
@@ -108,7 +108,7 @@ impl<'a> BlockParser<'a> {
     /// - The matched directive appears multiple times (duplicate).
     pub fn required_any<T, F>(&mut self, names: &[&str], f: F) -> Result<T>
     where
-        F: FnOnce(ParseContext<'a>, &str) -> Result<T>,
+        F: FnOnce(ParseContext, &str) -> Result<T>,
     {
         self.optional_any(names, f)?.ok_or_else(|| {
             self.ctx
@@ -125,7 +125,7 @@ impl<'a> BlockParser<'a> {
     /// - The matched directive appears multiple times (duplicate).
     pub fn optional_any<T, F>(&mut self, names: &[&str], f: F) -> Result<Option<T>>
     where
-        F: FnOnce(ParseContext<'a>, &str) -> Result<T>,
+        F: FnOnce(ParseContext, &str) -> Result<T>,
     {
         let present_keys: Vec<&str> = names
             .iter()

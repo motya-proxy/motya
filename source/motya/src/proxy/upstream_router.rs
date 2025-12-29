@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use http::uri::PathAndQuery;
 use matchit::{InsertError, Router};
 use pingora::{prelude::HttpPeer, ErrorType};
@@ -15,11 +17,17 @@ pub struct UpstreamContext {
     pub balancer: Option<Balancer>,
 }
 
-pub trait UpstreamContextTrait {
+pub trait UpstreamContextTrait: Debug {
     fn get_prefix_path(&self) -> &PathAndQuery;
     fn get_route_type(&self) -> RouteMatcher;
     fn get_balancer(&self) -> Option<&Balancer>;
     fn get_peer(&self) -> Option<HttpPeer>;
+}
+
+impl Debug for UpstreamContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("sasibaka")
+    }
 }
 
 pub struct UpstreamRouter<TUpstream: UpstreamContextTrait> {
@@ -128,6 +136,7 @@ impl UpstreamContextTrait for UpstreamContext {
 pub mod tests {
     use super::*;
 
+    #[derive(Debug)]
     pub struct MockUpstreamContext {
         pub prefix: PathAndQuery,
         pub matcher: RouteMatcher,

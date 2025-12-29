@@ -3,13 +3,14 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use http::uri::{PathAndQuery, Uri};
+use motya_config::common_types::value::Value;
 use pingora::{Error, Result};
 use pingora_http::RequestHeader;
 use pingora_proxy::Session;
 
 use crate::proxy::{
     filters::{
-        builtin::helpers::{ensure_empty, extract_val},
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
         types::RequestModifyMod,
     },
     MotyaContext,
@@ -20,9 +21,9 @@ pub struct StripPrefix {
 }
 
 impl StripPrefix {
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let prefix = extract_val("prefix", &mut settings)?;
-        ensure_empty(&settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let prefix = settings.take_val::<String>("prefix")?.required("prefix")?;
+
         Ok(Self { prefix })
     }
 }

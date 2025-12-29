@@ -1,3 +1,4 @@
+#![allow(clippy::large_enum_variant)]
 pub mod cli;
 pub mod common_types;
 pub mod config_source;

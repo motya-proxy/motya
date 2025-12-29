@@ -1,4 +1,5 @@
 use fqdn::FQDN;
+use motya_config::common_types::value::Value;
 use pingora::{Error, ErrorType, Result};
 use std::collections::{BTreeMap, HashMap};
 
@@ -12,14 +13,13 @@ pub enum FilterInstance {
     Response(Box<dyn ResponseModifyMod>),
 }
 
-#[allow(clippy::large_enum_variant)]
 pub enum RegistryFilterContainer {
     Builtin(FilterInstance),
     Plugin(WasmModule),
 }
 
 type FiltersContainerFactoryFn =
-    Box<dyn Fn(BTreeMap<String, String>) -> Result<RegistryFilterContainer> + Send + Sync>;
+    Box<dyn Fn(BTreeMap<String, Value>) -> Result<RegistryFilterContainer> + Send + Sync>;
 
 /// The central repository for all available filter blueprints (factories).
 ///
@@ -50,7 +50,7 @@ impl FilterRegistry {
     pub fn build(
         &self,
         name: &FQDN,
-        settings: BTreeMap<String, String>,
+        settings: BTreeMap<String, Value>,
     ) -> Result<RegistryFilterContainer> {
         let factory = self.factories.get(name).ok_or_else(|| {
             Error::new(ErrorType::Custom("Filter is not registered in the binary"))
@@ -72,6 +72,7 @@ mod tests {
     use std::sync::Arc;
 
     use async_trait::async_trait;
+    use motya_config::common_types::value::Value;
 
     use crate::proxy::filters::chain_resolver::ChainResolver;
     use crate::proxy::filters::generate_registry::load_registry;
@@ -90,7 +91,7 @@ mod tests {
     struct MockHeaderFilter;
 
     impl MockHeaderFilter {
-        fn from_settings(mut s: BTreeMap<String, String>) -> Result<Self> {
+        fn from_settings(mut s: BTreeMap<String, Value>) -> Result<Self> {
             s.remove("key").unwrap();
             s.remove("value").unwrap();
             Ok(Self)
@@ -112,7 +113,7 @@ mod tests {
     struct MockBlockFilter;
 
     impl MockBlockFilter {
-        fn from_settings(_: BTreeMap<String, String>) -> Result<Self> {
+        fn from_settings(_: BTreeMap<String, Value>) -> Result<Self> {
             Ok(Self)
         }
     }
@@ -184,14 +185,14 @@ mod tests {
         definitions_table.insert_filter(FQDN::from_str("motya.sec.block").unwrap());
 
         // Construct the chain
-        let mut header_args = HashMap::new();
-        header_args.insert("key".to_string(), "X-Foo".to_string());
-        header_args.insert("value".to_string(), "Bar".to_string());
+        let mut header_args = BTreeMap::new();
+        header_args.insert("key".to_string(), Value::String("X-Foo".to_string()));
+        header_args.insert("value".to_string(), Value::String("Bar".to_string()));
 
         let filters = vec![
             ChainItem::Filter(ConfiguredFilter {
                 name: FQDN::from_str("motya.sec.block").unwrap(),
-                args: HashMap::new(),
+                args: BTreeMap::new(),
             }),
             ChainItem::Filter(ConfiguredFilter {
                 name: FQDN::from_str("motya.req.add_header").unwrap(),
@@ -273,7 +274,7 @@ mod tests {
             FilterChain {
                 items: vec![ChainItem::Filter(ConfiguredFilter {
                     name: FQDN::from_str("motya.always_fail").unwrap(),
-                    args: HashMap::new(),
+                    args: BTreeMap::new(),
                 })],
             },
         );

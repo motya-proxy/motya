@@ -1,12 +1,16 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
+use motya_config::common_types::value::Value;
 use pingora::Result;
 use pingora_http::RequestHeader;
 use pingora_proxy::Session;
 
 use crate::proxy::{
-    filters::{builtin::helpers::extract_val, types::RequestModifyMod},
+    filters::{
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
+        types::RequestModifyMod,
+    },
     MotyaContext,
 };
 
@@ -16,9 +20,10 @@ pub struct UpsertHeader {
 }
 
 impl UpsertHeader {
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let key = extract_val("key", &mut settings)?;
-        let value = extract_val("value", &mut settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let key = settings.take_val::<String>("key")?.required("key")?;
+        let value = settings.take_val::<String>("value")?.required("value")?;
+
         Ok(Self { key, value })
     }
 }

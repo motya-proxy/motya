@@ -224,7 +224,7 @@ mod tests {
 
         sleep(Duration::from_millis(200)).await;
 
-        let res = storage.check_and_update(key, rate, burst, 0).await.unwrap(); // cost 0 = просто посмотреть
+        let res = storage.check_and_update(key, rate, burst, 0).await.unwrap();
 
         assert_eq!(res.remaining, 5, "Tokens should be capped at burst size");
     }

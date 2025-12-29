@@ -83,9 +83,9 @@ mod tests {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
                     connectors {
-                        section "/1" { return code=200 response="OK1" }
-                        section "/2" { return code=200 response="OK2" }
-                        section "/3" { return code=200 response="OK3" }
+                        section "/1" { return 200 "OK1" }
+                        section "/2" { return 200 "OK2" }
+                        section "/3" { return 200 "OK3" }
                     }
                 }
             }
@@ -97,9 +97,9 @@ mod tests {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
                     connectors {
-                        section "/2" { return code=500 response="BAD" }
-                        section "/4" { return code=200 response="OK4" }
-                        section "/5" { return code=200 response="OK5" }
+                        section "/2" { return 500 "BAD" }
+                        section "/4" { return 200 "OK4" }
+                        section "/5" { return 200 "OK5" }
                     }
                 }
             }
@@ -111,11 +111,11 @@ mod tests {
                 TestService {
                     listeners { "127.0.0.1:__PORT__" }
                     connectors {
-                        section "/1" { return code=200 response="OK1" }
-                        section "/2" { return code=200 response="OK NOW" }
-                        section "/3" { return code=200 response="OK3" }
-                        section "/4" { return code=200 response="OK4" }
-                        section "/5" { return code=200 response="OK5" }
+                        section "/1" { return 200 "OK1" }
+                        section "/2" { return 200 "OK NOW" }
+                        section "/3" { return 200 "OK3" }
+                        section "/4" { return 200 "OK4" }
+                        section "/5" { return 200 "OK5" }
                     }
                 }
             }

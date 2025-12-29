@@ -1,28 +1,60 @@
 use std::collections::BTreeMap;
 
+use motya_config::common_types::value::Value;
 use pingora::{Error, Result};
 
-/// Helper function that extracts the value of a given key.
-///
-/// Returns an error if the key does not exist
-pub fn extract_val(key: &str, map: &mut BTreeMap<String, String>) -> Result<String> {
-    map.remove(key).ok_or_else(|| {
-        // TODO: better "Error" creation
-        tracing::error!("Missing key: '{key}'");
-        Error::new_str("Missing configuration field!")
-    })
+pub trait FromValue: Sized {
+    fn from_value(v: Value) -> Result<Self>;
 }
 
-/// Helper function to make sure the map is empty
-///
-/// This is used to reject unknown configuration keys
-pub fn ensure_empty(map: &BTreeMap<String, String>) -> Result<()> {
-    if !map.is_empty() {
-        let keys = map.keys().map(String::as_str).collect::<Vec<&str>>();
-        let all_keys = keys.join(", ");
-        tracing::error!("Extra keys found: '{all_keys}'");
-        Err(Error::new_str("Extra settings found!"))
-    } else {
-        Ok(())
+macro_rules! impl_from_value {
+    ($($t:ty => $variant:ident),*) => {
+        $(
+            impl FromValue for $t {
+                fn from_value(v: Value) -> Result<Self> {
+                    match v {
+                        Value::$variant(x) => Ok(x),
+                        _ => Err(Error::new_str(concat!("Expected ", stringify!($variant)))),
+                    }
+                }
+            }
+        )*
+    };
+}
+
+impl_from_value!(
+    String => String,
+    i128 => Integer,
+    bool => Bool,
+    f64 => Float
+);
+
+pub trait ConfigMapExt {
+    fn take_val<T: FromValue>(&mut self, key: &str) -> Result<Option<T>>;
+}
+
+impl ConfigMapExt for BTreeMap<String, Value> {
+    fn take_val<T: FromValue>(&mut self, key: &str) -> Result<Option<T>> {
+        self.remove(key)
+            .map(|v| {
+                T::from_value(v).map_err(|e| {
+                    tracing::error!("Field '{key}' has invalid type: {e:?}");
+                    e
+                })
+            })
+            .transpose()
+    }
+}
+
+pub trait RequiredValueExt<T> {
+    fn required(self, key: &str) -> Result<T>;
+}
+
+impl<T> RequiredValueExt<T> for Option<T> {
+    fn required(self, key: &str) -> Result<T> {
+        self.ok_or_else(|| {
+            tracing::error!("Missing required configuration key: '{key}'");
+            Error::new_str("Missing configuration field")
+        })
     }
 }

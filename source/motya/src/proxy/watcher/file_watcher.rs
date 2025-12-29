@@ -198,7 +198,6 @@ mod tests {
             basic_proxies: vec![ProxyConfig {
                 listeners: Listeners { list_cfgs: vec![] },
                 connectors: Connectors {
-                    anonymous_definitions: Default::default(),
                     upstreams: vec![UpstreamContextConfig {
                         chains: vec![],
                         lb_options: Default::default(),

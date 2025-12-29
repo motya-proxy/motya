@@ -200,6 +200,7 @@ impl ProxyHttp for MotyaProxyService {
         ctx: &mut Self::CTX,
     ) -> Result<Box<HttpPeer>> {
         static DEFAULT: PathAndQuery = PathAndQuery::from_static("/");
+        dbg!(&session.req_header().uri);
 
         match ctx.router.pick_peer(
             &mut ContextInfo {},

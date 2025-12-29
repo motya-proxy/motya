@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use http::uri::{PathAndQuery, Uri};
+use motya_config::common_types::value::Value;
 use pingora::{Error, Result};
 use pingora_http::RequestHeader;
 use pingora_proxy::Session;
@@ -10,7 +11,7 @@ use regex::Regex;
 
 use crate::proxy::{
     filters::{
-        builtin::helpers::{ensure_empty, extract_val},
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
         types::RequestModifyMod,
     },
     MotyaContext,
@@ -25,16 +26,18 @@ pub struct RewritePathRegex {
 }
 
 impl RewritePathRegex {
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let pattern = extract_val("pattern", &mut settings)?;
-        let replace = extract_val("replace", &mut settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let pattern = settings
+            .take_val::<String>("pattern")?
+            .required("pattern")?;
+        let replace = settings
+            .take_val::<String>("replace")?
+            .required("replace")?;
 
         let regex = Regex::new(&pattern).map_err(|e| {
             tracing::error!("Bad regex pattern: '{pattern}': {e:?}");
             Error::new_str("Error building regex for rewrite")
         })?;
-
-        ensure_empty(&settings)?;
 
         Ok(Self { regex, replace })
     }

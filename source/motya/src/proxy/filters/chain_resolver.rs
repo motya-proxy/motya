@@ -11,6 +11,7 @@ use miette::{miette, Context, IntoDiagnostic, Result};
 use motya_config::common_types::{
     definitions::{ChainItem, FilterChain},
     definitions_table::DefinitionsTable,
+    value::Value,
 };
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -89,7 +90,7 @@ impl ChainResolver {
         for item in &chain.items {
             match item {
                 ChainItem::Filter(filter_cfg) => {
-                    let settings: BTreeMap<String, String> = filter_cfg
+                    let settings: BTreeMap<String, Value> = filter_cfg
                         .args
                         .iter()
                         .map(|(k, v)| (k.clone(), v.clone()))

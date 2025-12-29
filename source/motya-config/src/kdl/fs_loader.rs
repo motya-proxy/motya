@@ -1,8 +1,7 @@
-use crate::common_types::section_parser::SectionParser;
 use crate::config_source::ConfigSource;
-use crate::kdl::includes::IncludesSection;
-use crate::kdl::parser::block::BlockParser;
-use crate::kdl::parser::ctx::{Current, ParseContext};
+use crate::kdl::models::imports::ImportsDef;
+use crate::kdl::parser::ctx::ParseContext;
+use crate::kdl::parser::parsable::KdlParsable;
 use async_recursion::async_recursion;
 use kdl::KdlDocument;
 use miette::{miette, Context, IntoDiagnostic, Result};
@@ -61,15 +60,12 @@ impl<Fs: AsyncFs> FileCollector<Fs> {
             .map(|s| s.to_string_lossy())
             .ok_or_else(|| miette!("It's not a file: {:?}", path))?;
 
-        let mut block = BlockParser::new(ParseContext::new(&doc, Current::Document(&doc), &name))?;
-
-        let raw_includes = block
-            .optional("includes", |ctx| IncludesSection.parse_node(ctx))?
-            .unwrap_or(vec![]);
+        let raw_includes =
+            ImportsDef::parse_node(&ParseContext::new(doc.clone(), &name), &()).unwrap_or_default();
 
         let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
 
-        for path_str in raw_includes {
+        for path_str in raw_includes.paths.iter().map(|v| v.value.clone()) {
             let include_path = base_dir.join(path_str);
 
             self.load_recursive(include_path).await?;

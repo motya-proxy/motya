@@ -1,33 +1,33 @@
 use std::collections::BTreeMap;
 
-use async_trait::async_trait;
-use pingora::{Error, Result};
-use pingora_http::RequestHeader;
-use pingora_proxy::Session;
-use regex::Regex;
-
 use crate::proxy::{
     filters::{
-        builtin::helpers::{ensure_empty, extract_val},
+        builtin::helpers::{ConfigMapExt, RequiredValueExt},
         types::RequestModifyMod,
     },
     MotyaContext,
 };
+use async_trait::async_trait;
+use motya_config::common_types::value::Value;
+use pingora::{Error, Result};
+use pingora_http::RequestHeader;
+use pingora_proxy::Session;
+use regex::Regex;
 
 pub struct RemoveHeaderKeyRegex {
     regex: Regex,
 }
 
 impl RemoveHeaderKeyRegex {
-    pub fn from_settings(mut settings: BTreeMap<String, String>) -> Result<Self> {
-        let mat = extract_val("pattern", &mut settings)?;
+    pub fn from_settings(mut settings: BTreeMap<String, Value>) -> Result<Self> {
+        let pat = settings
+            .take_val::<String>("pattern")?
+            .required("pattern")?;
 
-        let reg = Regex::new(&mat).map_err(|e| {
-            tracing::error!("Bad pattern: '{mat}': {e:?}");
+        let reg = Regex::new(&pat).map_err(|e| {
+            tracing::error!("Bad pattern: '{pat}': {e:?}");
             Error::new_str("Error building regex")
         })?;
-
-        ensure_empty(&settings)?;
 
         Ok(Self { regex: reg })
     }
@@ -41,7 +41,6 @@ impl RequestModifyMod for RemoveHeaderKeyRegex {
         header: &mut RequestHeader,
         _ctx: &mut MotyaContext,
     ) -> Result<()> {
-        // Find all the headers that have keys that match the regex...
         let headers = header
             .headers
             .keys()
@@ -55,7 +54,6 @@ impl RequestModifyMod for RemoveHeaderKeyRegex {
             })
             .collect::<Vec<_>>();
 
-        // ... and remove them
         for h in headers {
             assert!(header.remove_header(&h).is_some());
         }

@@ -21,3 +21,46 @@ impl VarRegistry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::kdl::parser::ctx::ParseContext;
+    use crate::kdl::parser::parsable::KdlParsable;
+    use crate::var_registry::VarRegistry;
+    use kdl::KdlDocument;
+    use motya_macro::Parser;
+
+    #[test]
+    fn test_threads_from_sys_var() {
+        let real_cpu_count = num_cpus::get();
+
+        #[derive(Parser)]
+        #[node(root)]
+        struct Test {
+            #[node(child)]
+            pub system: SystemTest,
+        }
+
+        #[derive(Parser)]
+        struct SystemTest {
+            #[node(child)]
+            pub tps: usize,
+        }
+
+        let input = r#"
+            system {
+                tps (var)"num_cpus" 
+            }
+        "#;
+
+        let ctx = ParseContext::new_with_registry(
+            input.parse::<KdlDocument>().unwrap().into(),
+            "<test>".into(),
+            VarRegistry::new().into(),
+        );
+
+        let test = Test::parse_node(&ctx, &()).unwrap();
+
+        assert_eq!(test.system.tps, real_cpu_count);
+    }
+}

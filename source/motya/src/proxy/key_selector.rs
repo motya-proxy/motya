@@ -111,8 +111,8 @@ fn apply_transform<A: Array<Item = u8>>(op: &TransformOp, buf: &mut SmallVec<A>)
             }
         }
         TransformOp::Truncate { length } => {
-            if buf.len() > *length {
-                buf.truncate(*length);
+            if buf.len() > length.get() {
+                buf.truncate(length.get());
             }
         }
         TransformOp::RemoveQueryParams => {

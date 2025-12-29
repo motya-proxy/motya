@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::num::{NonZero, NonZeroUsize};
 use std::sync::OnceLock;
 use std::{collections::HashMap, str::FromStr};
 
@@ -17,7 +18,7 @@ pub enum TransformOp {
     Lowercase,
     RemoveQueryParams,
     StripTrailingSlash,
-    Truncate { length: usize },
+    Truncate { length: NonZeroUsize },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -128,7 +129,9 @@ pub fn parse_transform(t: &Transform) -> Result<TransformOp, String> {
                 .get("length")
                 .ok_or("Missing length param for truncate")?;
             let length = len_str.parse::<usize>().map_err(|_| "Invalid length")?;
-            Ok(TransformOp::Truncate { length })
+            Ok(TransformOp::Truncate {
+                length: NonZero::new(length).unwrap(),
+            })
         }
         _ => Err(format!("Unknown transform: {}", t.name)),
     }
@@ -248,7 +251,7 @@ mod tests {
 
         let t_trunc = create_transform("truncate", vec![("length", "64")]);
         match parse_transform(&t_trunc) {
-            Ok(TransformOp::Truncate { length }) => assert_eq!(length, 64),
+            Ok(TransformOp::Truncate { length }) => assert_eq!(length, NonZero::new(64).unwrap()),
             res => panic!("Expected Truncate {{ 64 }}, got {:?}", res),
         }
     }

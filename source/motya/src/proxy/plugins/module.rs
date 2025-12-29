@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use miette::miette;
+use motya_config::common_types::value::Value;
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::Session;
 use wasmtime::{
@@ -47,7 +48,7 @@ impl<T: TraitModuleState> WasmModule<T> {
     pub fn pick(
         &self,
         name: &str,
-        cfg: &BTreeMap<String, String>,
+        cfg: &BTreeMap<String, Value>,
         state: T,
     ) -> miette::Result<Option<WasmFilterState<T>>> {
         let mut store = Store::new(&self.artifact.engine, state);
@@ -60,7 +61,10 @@ impl<T: TraitModuleState> WasmModule<T> {
             .call_create(
                 &mut store,
                 name,
-                &cfg.clone().into_iter().collect::<Vec<_>>(),
+                &cfg.clone()
+                    .into_iter()
+                    .map(|(k, v)| (k, v.to_string()))
+                    .collect::<Vec<_>>(),
             )
             .map_err(|err| miette!("{err}"))?
             .map_err(|err| miette!("module('{name}') return error on create filter: {err}"))?
@@ -94,7 +98,7 @@ pub struct WasmFilterState<T: 'static> {
 pub struct WasmInvoker<T: 'static = ModuleState> {
     pub module: WasmModule<T>,
     pub filter_name: String,
-    pub config: BTreeMap<String, String>,
+    pub config: BTreeMap<String, Value>,
 }
 
 impl<T> Clone for WasmInvoker<T> {
@@ -111,7 +115,7 @@ impl<T: TraitModuleState> WasmInvoker<T> {
     pub fn new(
         module: WasmModule<T>,
         filter_name: String,
-        config: BTreeMap<String, String>,
+        config: BTreeMap<String, Value>,
     ) -> Self {
         Self {
             config,
@@ -306,7 +310,10 @@ mod tests {
         {
             let module = WasmPluginStore::create_module(&artifact).unwrap();
 
-            let config = BTreeMap::from([("forbidden".to_string(), "hubabuba".to_string())]);
+            let config = BTreeMap::from([(
+                "forbidden".to_string(),
+                Value::String("hubabuba".to_string()),
+            )]);
 
             let state = MockState::default();
 
@@ -318,7 +325,10 @@ mod tests {
         {
             let module = WasmPluginStore::create_module(&artifact).unwrap();
 
-            let config = BTreeMap::from([("forbidden".to_string(), "not hubabuba".to_string())]);
+            let config = BTreeMap::from([(
+                "forbidden".to_string(),
+                Value::String("not hubabuba".to_string()),
+            )]);
 
             let state = MockState::default();
 
@@ -332,7 +342,10 @@ mod tests {
         {
             let module = WasmPluginStore::create_module(&artifact).unwrap();
 
-            let config = BTreeMap::from([("forbidden".to_string(), "not hubabuba".to_string())]);
+            let config = BTreeMap::from([(
+                "forbidden".to_string(),
+                Value::String("not hubabuba".to_string()),
+            )]);
 
             let state = MockState::default();
 

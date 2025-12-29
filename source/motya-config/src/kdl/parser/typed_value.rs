@@ -5,19 +5,37 @@ use miette::Result;
 
 use crate::kdl::parser::{ctx::ParseContext, utils::get_simple_type_name};
 
-#[derive(Debug, Clone, Copy)]
-pub struct TypedValue<'a> {
-    ctx: &'a ParseContext<'a>,
-    entry: &'a KdlEntry,
+#[derive(Debug, Clone)]
+pub struct TypedValue {
+    ctx: ParseContext,
+    entry: KdlEntry,
 }
 
-impl<'a> TypedValue<'a> {
-    pub fn new(ctx: &'a ParseContext<'a>, entry: &'a KdlEntry) -> Self {
+impl PartialEq for TypedValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry == other.entry
+    }
+}
+
+impl TypedValue {
+    pub fn new(ctx: ParseContext, entry: KdlEntry) -> Self {
         Self { ctx, entry }
+    }
+
+    pub fn span(&self) -> miette::SourceSpan {
+        self.entry.span()
     }
 
     pub fn name(&self) -> Option<&str> {
         self.entry.name().map(|n| n.value())
+    }
+
+    pub fn ty(&self) -> Option<&str> {
+        self.entry.ty().map(|t| t.value())
+    }
+
+    pub fn value(&self) -> KdlValue {
+        self.entry.value().clone()
     }
 
     fn try_resolve_variable(&self) -> Result<Option<String>> {
@@ -122,7 +140,7 @@ impl<'a> TypedValue<'a> {
         T: FromStr,
         T::Err: Display,
     {
-        let raw_str = self.as_string_lossy()?;
+        let raw_str = self.clone().as_string_lossy()?;
         T::from_str(&raw_str).map_err(|e| {
             let type_name = get_simple_type_name::<T>();
             self.ctx.error_with_span(
@@ -151,28 +169,36 @@ impl<'a> TypedValue<'a> {
     }
 }
 
-impl<'a> ParseContext<'a> {
-    pub fn first<'b>(&'a self) -> Result<TypedValue<'b>>
-    where
-        'a: 'b,
-    {
+impl ParseContext {
+    pub fn first(&self) -> Result<TypedValue> {
         let entry = self
             .args()?
             .first()
+            .cloned()
             .ok_or_else(|| self.error("Missing required first argument"))?;
 
-        Ok(TypedValue::new(self, entry))
+        Ok(TypedValue::new(self.clone(), entry))
     }
 
-    pub fn arg<'b>(&'a self, index: usize) -> Result<TypedValue<'b>>
-    where
-        'a: 'b,
-    {
+    pub fn arg_opt(&self, index: usize) -> Result<Option<TypedValue>> {
         let entry = self
             .args()?
             .iter()
             .filter(|e| e.name().is_none())
             .nth(index)
+            .cloned()
+            .map(|e| TypedValue::new(self.clone(), e));
+
+        Ok(entry)
+    }
+
+    pub fn arg(&self, index: usize) -> Result<TypedValue> {
+        let entry = self
+            .args()?
+            .iter()
+            .filter(|e| e.name().is_none())
+            .nth(index)
+            .cloned()
             .ok_or_else(|| {
                 self.error(format!(
                     "Missing required argument at position {}",
@@ -180,57 +206,47 @@ impl<'a> ParseContext<'a> {
                 ))
             })?;
 
-        Ok(TypedValue::new(self, entry))
+        Ok(TypedValue::new(self.clone(), entry))
     }
 
-    pub fn args_named_typed<'b>(&'a self) -> Result<Vec<TypedValue<'b>>>
-    where
-        'a: 'b,
-    {
+    pub fn props_typed(&self) -> Result<Vec<TypedValue>> {
         let entries = self
-            .args_typed()?
-            .into_iter()
+            .args()?
+            .iter()
+            .map(|entry| TypedValue::new(self.clone(), entry.clone()))
             .filter(|e| e.name().is_some())
             .collect();
 
         Ok(entries)
     }
 
-    pub fn args_typed<'b>(&'a self) -> Result<Vec<TypedValue<'b>>>
-    where
-        'a: 'b,
-    {
+    pub fn args_typed(&self) -> Result<Vec<TypedValue>> {
         let entries = self
             .args()?
             .iter()
-            .map(|entry| TypedValue::new(self, entry))
+            .map(|entry| TypedValue::new(self.clone(), entry.clone()))
+            .filter(|e| e.name().is_none())
             .collect();
 
         Ok(entries)
     }
 
-    pub fn prop<'b>(&'a self, key: &str) -> Result<TypedValue<'b>>
-    where
-        'a: 'b,
-    {
+    pub fn prop(&self, key: &str) -> Result<TypedValue> {
         let entry = self
             .args()?
             .iter()
             .find(|e| e.name().map(|n| n.value()) == Some(key))
             .ok_or_else(|| self.error(format!("Missing required property '{}'", key)))?;
 
-        Ok(TypedValue::new(self, entry))
+        Ok(TypedValue::new(self.clone(), entry.clone()))
     }
 
-    pub fn opt_prop<'b>(&'a self, key: &str) -> Result<Option<TypedValue<'b>>>
-    where
-        'a: 'b,
-    {
+    pub fn opt_prop(&self, key: &str) -> Result<Option<TypedValue>> {
         let entry = self
             .args()?
             .iter()
             .find(|e| e.name().map(|n| n.value()) == Some(key));
 
-        Ok(entry.map(|e| TypedValue::new(self, e)))
+        Ok(entry.map(|e| TypedValue::new(self.clone(), e.clone())))
     }
 }

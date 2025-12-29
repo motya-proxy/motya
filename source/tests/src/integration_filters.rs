@@ -24,10 +24,10 @@ const TEST_CONFIG: &str = r#"
     definitions {
         modifiers {
             chain-filters "filter-a" {
-                filter name="motya.request.upsert-header" key="X-Service" value="A"
+                filter "motya.request.upsert-header" key="x-service" value="A"
             }
             chain-filters "filter-b" {
-                filter name="motya.request.upsert-header" key="X-Service" value="B"
+                filter "motya.request.upsert-header" key="x-service" value="B"
             }
         }
     }
@@ -62,7 +62,7 @@ fn get_free_port() -> u16 {
 async fn wait_for_proxy_start(url: &str) {
     let client = Client::new();
     for _ in 0..30 {
-        if client.get(url).send().await.is_ok() {
+        if dbg!(client.get(url).send().await).is_ok() {
             return;
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -120,13 +120,13 @@ async fn test_routes_apply_different_filters_internal_file() {
 
     Mock::given(method("GET"))
         .and(path("/service-a"))
-        .and(header("X-Service", "A"))
+        .and(header("x-service", "A"))
         .respond_with(ResponseTemplate::new(200).set_body_string("Response from A"))
         .mount(&mock_server_a)
         .await;
     Mock::given(method("GET"))
         .and(path("/service-b"))
-        .and(header("X-Service", "B"))
+        .and(header("x-service", "B"))
         .respond_with(ResponseTemplate::new(200).set_body_string("Response from B"))
         .mount(&mock_server_b)
         .await;
@@ -152,6 +152,7 @@ async fn test_routes_apply_different_filters_internal_file() {
     let client = Client::new();
 
     let resp_a = client.get(&url_a).send().await.expect("Request A failed");
+
     assert_eq!(resp_a.status(), 200, "Service A status mismatch");
     assert_eq!(resp_a.text().await.unwrap(), "Response from A");
 

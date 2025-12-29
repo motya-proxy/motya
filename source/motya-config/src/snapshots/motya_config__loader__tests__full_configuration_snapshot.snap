@@ -1,0 +1,121 @@
+---
+source: source/motya-config/src/loader.rs
+expression: config
+---
+Config {
+    validate_configs: false,
+    threads_per_service: 8,
+    daemonize: false,
+    pid_file: Some(
+        "/tmp/motya.pid",
+    ),
+    upgrade_socket: None,
+    upgrade: false,
+    basic_proxies: [
+        ProxyConfig {
+            name: "MyApiProxy",
+            listeners: Listeners {
+                list_cfgs: [
+                    ListenerConfig {
+                        source: Tcp {
+                            addr: "0.0.0.0:8080",
+                            tls: None,
+                            offer_h2: false,
+                        },
+                    },
+                ],
+            },
+            connectors: Connectors {
+                upstreams: [
+                    UpstreamContextConfig {
+                        upstream: Service(
+                            HttpPeerConfig {
+                                peer_address: 127.0.0.1:3000,
+                                alpn: H1,
+                                tls: false,
+                                sni: "",
+                                prefix_path: /api/v1,
+                                target_path: /,
+                                matcher: Exact,
+                            },
+                        ),
+                        chains: [
+                            Chain(
+                                NamedFilterChain {
+                                    name: "secure-chain",
+                                    chain: FilterChain {
+                                        items: [
+                                            Filter(
+                                                ConfiguredFilter {
+                                                    name: FQDN(
+                                                        "\x04gzip",
+                                                    ),
+                                                    args: {
+                                                        "name": String(
+                                                            "lol",
+                                                        ),
+                                                        "prop-some": String(
+                                                            "basbdsdb",
+                                                        ),
+                                                    },
+                                                },
+                                            ),
+                                            RateLimiter(
+                                                RateLimitPolicy {
+                                                    name: "api_limit",
+                                                    algorithm: "token_bucket",
+                                                    storage_key: "",
+                                                    transforms: [],
+                                                    key_template: KeyTemplate {
+                                                        parts: [
+                                                            Literal(
+                                                                "GLOBAL",
+                                                            ),
+                                                        ],
+                                                    },
+                                                    rate_req_per_sec: 10.0,
+                                                    burst: 50,
+                                                },
+                                            ),
+                                        ],
+                                    },
+                                },
+                            ),
+                        ],
+                        lb_options: None,
+                    },
+                    UpstreamContextConfig {
+                        upstream: Static(
+                            SimpleResponseConfig {
+                                http_code: 200,
+                                response_body: "OK",
+                                prefix_path: /health,
+                            },
+                        ),
+                        chains: [],
+                        lb_options: None,
+                    },
+                ],
+            },
+        },
+    ],
+    file_servers: [
+        FileServerConfig {
+            name: "MyStaticServer",
+            listeners: Listeners {
+                list_cfgs: [
+                    ListenerConfig {
+                        source: Tcp {
+                            addr: "127.0.0.1:9090",
+                            tls: None,
+                            offer_h2: false,
+                        },
+                    },
+                ],
+            },
+            base_path: Some(
+                "/var/www/html",
+            ),
+        },
+    ],
+}

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     sync::{mpsc, Arc},
     thread,
 };
@@ -13,7 +13,7 @@ use motya::{
         rate_limiter::registry::StorageRegistry,
     },
 };
-use pingora::{prelude::HttpPeer, server::Server};
+use pingora::server::Server;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use fqdn::fqdn;
@@ -23,6 +23,7 @@ use motya_config::{
         definitions::{ChainItem, ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         listeners::{ListenerConfig, ListenerKind, Listeners},
+        value::Value,
     },
     internal::{Config, ProxyConfig},
 };
@@ -42,7 +43,10 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
     let chain = FilterChain {
         items: vec![ChainItem::Filter(ConfiguredFilter {
             name: fqdn!("motya.filters.block-cidr-range"),
-            args: HashMap::from([("addrs".to_string(), "127.0.0.0/8".to_string())]),
+            args: BTreeMap::from([(
+                "addrs".to_string(),
+                Value::String("127.0.0.0/8".to_string()),
+            )]),
         })],
     };
 
@@ -78,7 +82,6 @@ pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
                     matcher: Default::default(),
                 }),
             }],
-            anonymous_definitions: Default::default(),
         },
         listeners: Listeners {
             list_cfgs: vec![ListenerConfig {
@@ -130,7 +133,7 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
     let chain = FilterChain {
         items: vec![ChainItem::Filter(ConfiguredFilter {
             name: fqdn!("motya.filters.block-cidr-range"),
-            args: HashMap::from([("addrs".to_string(), "10.0.0.0/8".to_string())]),
+            args: BTreeMap::from([("addrs".to_string(), Value::String("10.0.0.0/8".to_string()))]),
         })],
     };
 
@@ -166,7 +169,6 @@ pub async fn setup_check_cidr_accept() -> thread::JoinHandle<()> {
                     matcher: Default::default(),
                 }),
             }],
-            anonymous_definitions: Default::default(),
         },
         listeners: Listeners {
             list_cfgs: vec![ListenerConfig {
