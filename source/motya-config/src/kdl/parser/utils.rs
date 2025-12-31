@@ -114,7 +114,7 @@ pub mod macros_helpers {
             message: e.to_string(),
             label: Some(label),
             help,
-            src: Some(source),
+            src: source
         }
     }
 
@@ -140,7 +140,7 @@ pub mod macros_helpers {
             message: msg.into(),
             label: Some(span),
             help,
-            src: Some(source),
+            src: source,
         });
     }
 

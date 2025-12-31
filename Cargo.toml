@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "source/motya",
-    "source/motya-config", 
+    "source/motya-config", "source/motya-lsp", 
     "source/motya-macro",
     "source/tests"
 ]

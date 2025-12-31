@@ -13,3 +13,10 @@ pub struct ImportsDef {
     #[node(dynamic_child)]
     pub paths: Vec<ImportPath>,
 }
+
+#[derive(Parser, Clone, Debug, Default)]
+#[node(root, ignore_unknown)]
+pub struct PartialParsedRoot {
+    #[node(child)]
+    pub imports: Option<ImportsDef>
+}

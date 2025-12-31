@@ -15,6 +15,9 @@ pub struct NodeStructAttrs {
 
     #[darling(default)]
     pub allow_empty: bool,
+
+    #[darling(default)]
+    pub ignore_unknown: bool,
 }
 
 #[derive(FromField)]

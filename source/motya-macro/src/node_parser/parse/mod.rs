@@ -47,6 +47,7 @@ pub fn parse(input: DeriveInput) -> Result<NodeModel> {
                 all_props_field: all_props,
                 all_args_field: all_args,
                 kind: NodeModelKind::Struct,
+                ignore_unknown: struct_attrs.ignore_unknown,
                 is_root: struct_attrs.root.unwrap_or(false),
             })
         }
@@ -78,6 +79,7 @@ pub fn parse(input: DeriveInput) -> Result<NodeModel> {
                 all_props_field: None,
                 all_args_field: None,
                 is_root: false,
+                ignore_unknown: struct_attrs.ignore_unknown,
                 kind: NodeModelKind::Enum(variants),
             })
         }

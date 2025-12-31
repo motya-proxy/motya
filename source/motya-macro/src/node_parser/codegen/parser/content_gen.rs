@@ -45,7 +45,7 @@ impl<'a> ContentGenerator<'a> {
         let parse_all_args = field_gen.gen_all_args(target.all_args, target.args.len());
         let parse_all_props = field_gen.gen_all_props(target.all_props, target.props);
 
-        let parse_children = child_gen.generate(target.block);
+        let parse_children = child_gen.generate(target.block, self.model.ignore_unknown);
 
         let constructor = ctor_gen.generate(target);
 

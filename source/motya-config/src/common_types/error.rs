@@ -1,5 +1,6 @@
 use std::fmt;
 
+use kdl::KdlError;
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
@@ -17,7 +18,7 @@ pub struct ParseError {
     pub help: Option<String>,
 
     #[source_code]
-    pub src: Option<NamedSource<String>>,
+    pub src: NamedSource<String>,
 }
 
 #[derive(Error, Diagnostic, Default, Clone)]
@@ -67,15 +68,17 @@ impl ConfigError {
 }
 
 impl ParseError {
+
     pub fn new(
         msg: impl Into<String>,
-        span: Option<SourceSpan>,
-        src: Option<NamedSource<String>>,
+        label: Option<SourceSpan>,
+        help: Option<String>,
+        src: NamedSource<String>,
     ) -> Self {
         Self {
             message: msg.into(),
-            label: span,
-            help: None,
+            label,
+            help,
             src,
         }
     }
@@ -93,7 +96,18 @@ impl ParseError {
             message: e.to_string(),
             label: Some(label),
             help,
-            src: Some(ctx.source().clone()),
+            src: ctx.source().clone(),
         }
+    }
+
+    pub fn from_kdl_error(e: KdlError, src: NamedSource<String>) -> Vec<Self> {
+        e.diagnostics.into_iter().map(|d| {
+            Self {
+                message: d.message.unwrap_or_else(|| "Syntax error".to_string()),
+                label: Some(d.span),
+                help: d.help,
+                src: src.clone()
+            }
+        }).collect()
     }
 }

@@ -15,6 +15,7 @@ pub struct NodeModel {
     pub all_props_field: Option<BaseField>,
     pub all_args_field: Option<BaseField>,
     pub is_root: bool,
+    pub ignore_unknown: bool
 }
 
 pub struct BaseField {

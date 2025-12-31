@@ -18,7 +18,7 @@ impl<'a> ChildGenerator<'a> {
         }
     }
 
-    pub fn generate(&self, block: &BlockSpec) -> TokenStream {
+    pub fn generate(&self, block: &BlockSpec, ignore_unknown: bool) -> TokenStream {
         match block {
             BlockSpec::Empty => quote!(),
 
@@ -29,7 +29,7 @@ impl<'a> ChildGenerator<'a> {
                 ..
             } => self.gen_dynamic_block(field_ident, inner_type, opts),
 
-            BlockSpec::Strict(children) => self.gen_strict_block(children),
+            BlockSpec::Strict(children) => self.gen_strict_block(children, ignore_unknown),
         }
     }
 
@@ -63,7 +63,7 @@ impl<'a> ChildGenerator<'a> {
         }
     }
 
-    fn gen_strict_block(&self, children: &[ChildSpec]) -> TokenStream {
+    fn gen_strict_block(&self, children: &[ChildSpec], ignore_unknown: bool) -> TokenStream {
         let helpers = &self.namespaces.helpers;
         let error_mod = &self.namespaces.error_mod;
 
@@ -249,15 +249,17 @@ impl<'a> ChildGenerator<'a> {
             });
         }
 
-        finals.push(quote! {
-            for (name, nodes) in __children_map {
-                if !nodes.is_empty() {
-                    let first = &nodes[0];
-                    let msg = format!("Unknown child node '{}'", name);
-                    #helpers::push_custom(&mut __errors, msg, None, first.current_span(), first.source());
+        if !ignore_unknown {
+            finals.push(quote! {
+                for (name, nodes) in __children_map {
+                    if !nodes.is_empty() {
+                        let first = &nodes[0];
+                        let msg = format!("Unknown child node '{}'", name);
+                        #helpers::push_custom(&mut __errors, msg, None, first.current_span(), first.source());
+                    }
                 }
-            }
-        });
+            });
+        }
 
         quote! {
             #(#decls)*

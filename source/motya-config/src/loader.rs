@@ -2,6 +2,7 @@ use miette::Result;
 use std::path::PathBuf;
 
 use crate::common_types::definitions_table::DefinitionsTable;
+use crate::common_types::error::ConfigError;
 use crate::config_source::ConfigSource;
 use crate::internal::Config;
 use crate::kdl::linker::ConfigLinker;
@@ -28,31 +29,66 @@ impl<S: ConfigSource> FileConfigLoaderProvider for ConfigLoader<S> {
         self,
         path: Option<PathBuf>,
         global_definitions: &mut DefinitionsTable,
-    ) -> Result<Option<Config>> {
-        if let Some(path) = path {
-            let documents = self.source.collect(path).await?;
+    ) -> miette::Result<Option<Config>> {
+        
+        let (config, errors) = self.load_lossy(path, global_definitions).await;
 
-            let mut roots = Vec::with_capacity(documents.len());
-            for (doc, source_name) in documents {
-                let ctx = ParseContext::new(doc, &source_name);
-                let root = RootDef::parse_node(&ctx, &())?;
-                roots.push(root);
-            }
-
-            let linker = ConfigLinker::new(global_definitions);
-            let config = linker.link(roots)?;
-
-            Ok(Some(config))
-        } else {
-            Ok(None)
+        if !errors.is_empty() {
+            return Err(miette::Report::new(errors));
         }
+
+        Ok(config)
     }
+
 }
 
 impl<S: ConfigSource> ConfigLoader<S> {
     pub fn new(source: S) -> Self {
         Self { source }
     }
+
+    pub async fn load_lossy(
+        &self,
+        path: Option<PathBuf>,
+        global_definitions: &mut DefinitionsTable,
+    ) -> (Option<Config>, ConfigError) {
+
+        let Some(path) = path else {
+            return (None, ConfigError::default());
+        };
+
+        let (documents, mut errors) = self.source.collect_lossy(path).await;
+
+        let mut roots = Vec::with_capacity(documents.len());
+        
+        for (doc, source_name) in documents {
+            let ctx = ParseContext::new(doc, &source_name);
+            
+            match RootDef::parse_node(&ctx, &()) {
+                Ok(root) => roots.push(root),
+                Err(config_error) => {
+                    errors.merge(config_error);
+                }
+            }
+        }
+
+        let config = if !roots.is_empty() {
+            let linker = ConfigLinker::new(global_definitions);
+            match linker.link(roots) {
+                Ok(cfg) => Some(cfg),
+                Err(config_error) => {
+
+                    errors.merge(config_error);
+                    None 
+                }
+            }
+        } else {
+            None
+        };
+
+        (config, errors)
+    }
+
 }
 
 #[cfg(test)]
