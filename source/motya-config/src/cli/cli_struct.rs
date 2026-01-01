@@ -1,7 +1,8 @@
 //! Configuration sourced from the CLI
 
-use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 pub struct Cli {

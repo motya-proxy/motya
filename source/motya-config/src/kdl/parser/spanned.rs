@@ -1,9 +1,11 @@
-use crate::kdl::parser::ctx::ParseContext;
-use miette::SourceSpan;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+use miette::SourceSpan;
+
+use crate::kdl::parser::ctx::ParseContext;
 
 #[derive(Clone)]
 pub struct Spanned<T> {

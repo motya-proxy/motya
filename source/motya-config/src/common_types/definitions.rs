@@ -1,8 +1,8 @@
-use fqdn::FQDN;
 use std::{collections::BTreeMap, path::PathBuf};
 
+use fqdn::FQDN;
+
 use crate::common_types::{
-    key_template::{HashOp, KeyTemplate, TransformOp},
     rate_limiter::RateLimitPolicy,
     value::Value,
 };
@@ -34,14 +34,6 @@ pub struct PluginDefinition {
 pub enum PluginSource {
     File(PathBuf),
     Url(String),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct BalancerConfig {
-    pub source: KeyTemplate,
-    pub fallback: Option<KeyTemplate>,
-    pub algorithm: HashOp,
-    pub transforms: Vec<TransformOp>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

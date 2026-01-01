@@ -1,10 +1,14 @@
-use super::content_gen::ContentGenerator;
-use crate::node_parser::codegen::heuristics::ScoreGenerator;
-use crate::node_parser::codegen::parser::Namespaces;
-use crate::node_parser::codegen::parser::types::ParseTarget;
-use crate::node_parser::model::{NodeModel, VariantFields, VariantSpec};
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use super::content_gen::ContentGenerator;
+use crate::node_parser::{
+    codegen::{
+        heuristics::ScoreGenerator,
+        parser::{Namespaces, types::ParseTarget},
+    },
+    model::{NodeModel, VariantFields, VariantSpec},
+};
 
 pub struct EnumGenerator<'a> {
     model: &'a NodeModel,
@@ -24,8 +28,6 @@ impl<'a> EnumGenerator<'a> {
     pub fn generate(&self) -> TokenStream {
         let error_mod = &self.namespaces.error_mod;
         let helpers = &self.namespaces.helpers;
-
-        let enum_ident_str = self.model.struct_name.to_string();
 
         let variant_names: Vec<String> = self
             .variants
@@ -146,7 +148,7 @@ impl<'a> EnumGenerator<'a> {
         let calcs = self
             .variants
             .iter()
-            .map(|v| ScoreGenerator::gen_variant_score(v));
+            .map(ScoreGenerator::gen_variant_score);
 
         quote! {
             impl #struct_name {

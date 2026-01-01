@@ -1,9 +1,11 @@
+use std::{collections::HashMap, ptr::NonNull, sync::Arc};
+
 use fqdn::FQDN;
 use futures_util::future::join_all;
 use miette::{miette, Context, Result};
+use motya_config::common_types::{definitions::PluginSource, definitions_table::DefinitionsTable};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::Session;
-use std::{collections::HashMap, ptr::NonNull, sync::Arc};
 use wasmtime::{
     component::{Component, Linker},
     Engine,
@@ -11,6 +13,7 @@ use wasmtime::{
 use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxView, WasiView};
 use wasmtime_wasi_io::IoView;
 
+use super::loader::PluginLoader;
 use crate::proxy::{
     filters::registry::{FilterRegistry, RegistryFilterContainer},
     plugins::{
@@ -18,9 +21,6 @@ use crate::proxy::{
         module::{TraitModuleState, WasmModule},
     },
 };
-use motya_config::common_types::{definitions::PluginSource, definitions_table::DefinitionsTable};
-
-use super::loader::PluginLoader;
 
 #[derive(Clone)]
 pub struct WasmArtifact {
@@ -162,14 +162,20 @@ impl IoView for ModuleState {
 
 #[cfg(test)]
 mod tests {
-    use motya_config::common_types::definitions::PluginDefinition;
-    use motya_config::common_types::definitions_table::DefinitionsTable;
+    use std::{
+        collections::{HashMap, HashSet},
+        str::FromStr,
+    };
+
+    use motya_config::common_types::{
+        definitions::PluginDefinition, definitions_table::DefinitionsTable,
+    };
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     use super::*;
-    use std::collections::{HashMap, HashSet};
-    use std::str::FromStr;
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     const WASM_BYTES: &[u8] = include_bytes!("../../../assets/request_filter.wasm");
 

@@ -1,7 +1,8 @@
+use std::{fmt::Debug, future, time::Duration};
+
 use async_trait::async_trait;
 use miette::{miette, Result};
 use moka::future::Cache;
-use std::{fmt::Debug, future, time::Duration};
 use tokio::time::Instant;
 
 #[derive(Debug)]
@@ -110,9 +111,11 @@ impl RateLimitStorage for MemoryStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
     use tokio::time::{sleep, Duration};
+
+    use super::*;
 
     fn create_storage() -> MemoryStorage {
         MemoryStorage::new(1000, Duration::from_secs(60))

@@ -1,6 +1,8 @@
-use super::ctx::ParseContext;
-use miette::Result;
 use std::collections::HashMap;
+
+use miette::Result;
+
+use super::ctx::ParseContext;
 
 pub struct BlockParser {
     ctx: ParseContext,

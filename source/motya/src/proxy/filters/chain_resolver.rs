@@ -1,3 +1,13 @@
+use std::{collections::BTreeMap, sync::Arc};
+
+use miette::{miette, Context, IntoDiagnostic, Result};
+use motya_config::common_types::{
+    definitions::{ChainItem, FilterChain},
+    definitions_table::DefinitionsTable,
+    value::Value,
+};
+use tokio::sync::Mutex;
+
 use crate::proxy::{
     filters::{
         builtin::rate_limiter::RateLimitFilter,
@@ -7,15 +17,6 @@ use crate::proxy::{
     plugins::module::{FilterType, WasmInvoker},
     rate_limiter::{instance::RateLimiterInstance, registry::StorageRegistry},
 };
-use miette::{miette, Context, IntoDiagnostic, Result};
-use motya_config::common_types::{
-    definitions::{ChainItem, FilterChain},
-    definitions_table::DefinitionsTable,
-    value::Value,
-};
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Default)]
 pub struct RuntimeChain {

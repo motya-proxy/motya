@@ -1,7 +1,11 @@
+use std::{
+    collections::HashMap,
+    num::{NonZero, NonZeroUsize},
+    str::FromStr,
+    sync::OnceLock,
+};
+
 use regex::Regex;
-use std::num::{NonZero, NonZeroUsize};
-use std::sync::OnceLock;
-use std::{collections::HashMap, str::FromStr};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyPart {
@@ -155,8 +159,9 @@ pub fn parse_hasher(algo: &HashAlgorithm) -> Result<HashOp, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     fn create_transform(name: &str, params: Vec<(&str, &str)>) -> Transform {
         let mut map = HashMap::new();

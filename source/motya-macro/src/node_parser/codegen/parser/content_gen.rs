@@ -1,12 +1,13 @@
-use crate::node_parser::codegen::parser::Namespaces;
-use crate::node_parser::codegen::parser::child_gen::ChildGenerator;
-use crate::node_parser::codegen::parser::constructor_gen::ConstructorGenerator;
-use crate::node_parser::codegen::parser::field_gen::FieldGenerator;
-use crate::node_parser::codegen::parser::types::ParseTarget;
-use crate::node_parser::codegen::parser::validation::ValidationGenerator;
-use crate::node_parser::model::NodeModel;
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::node_parser::{
+    codegen::parser::{
+        Namespaces, child_gen::ChildGenerator, constructor_gen::ConstructorGenerator,
+        field_gen::FieldGenerator, types::ParseTarget, validation::ValidationGenerator,
+    },
+    model::NodeModel,
+};
 
 pub struct ContentGenerator<'a> {
     namespaces: &'a Namespaces,

@@ -1,23 +1,33 @@
-use motya::app_context::{pingora_opt, pingora_server_conf};
-use motya::fs_adapter::TokioFs;
-use motya::proxy::filters::chain_resolver::ChainResolver;
-use motya::proxy::filters::generate_registry::load_registry;
-use motya::proxy::motya_proxy_service;
-use motya::proxy::rate_limiter::registry::StorageRegistry;
-use motya_config::common_types::definitions_table::DefinitionsTable;
-use motya_config::internal::Config;
-use motya_config::kdl::fs_loader::FileCollector;
-use motya_config::loader::{ConfigLoader, FileConfigLoaderProvider};
+use std::{
+    io::Write,
+    net::TcpListener,
+    sync::{mpsc, Arc},
+    thread,
+    time::Duration,
+};
+
+use motya::{
+    app_context::{pingora_opt, pingora_server_conf},
+    fs_adapter::TokioFs,
+    proxy::{
+        filters::{chain_resolver::ChainResolver, generate_registry::load_registry},
+        motya_proxy_service,
+        rate_limiter::registry::StorageRegistry,
+    },
+};
+use motya_config::{
+    common_types::definitions_table::DefinitionsTable,
+    internal::Config,
+    kdl::fs_loader::FileCollector,
+    loader::{ConfigLoader, FileConfigLoaderProvider},
+};
 use pingora::server::Server;
 use reqwest::Client;
-use std::io::Write;
-use std::net::TcpListener;
-use std::sync::{mpsc, Arc};
-use std::thread;
-use std::time::Duration;
 use tempfile::NamedTempFile;
-use wiremock::matchers::{header, method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{
+    matchers::{header, method, path},
+    Mock, MockServer, ResponseTemplate,
+};
 
 const TEST_CONFIG: &str = r#"
     system { }

@@ -1,14 +1,21 @@
-use crate::config_source::ConfigSource;
-use crate::kdl::models::imports::ImportsDef;
-use crate::kdl::parser::ctx::ParseContext;
-use crate::kdl::parser::parsable::KdlParsable;
+use std::{
+    collections::HashSet,
+    future::Future,
+    marker::PhantomData,
+    path::{Path, PathBuf},
+};
+
 use async_recursion::async_recursion;
 use kdl::KdlDocument;
 use miette::{miette, Context, IntoDiagnostic, Result};
-use std::collections::HashSet;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
+
+use crate::{
+    config_source::ConfigSource,
+    kdl::{
+        models::imports::ImportsDef,
+        parser::{ctx::ParseContext, parsable::KdlParsable},
+    },
+};
 
 pub trait AsyncFs: Send + Sync + Clone + Default {
     fn canonicalize(path: &Path) -> impl Future<Output = Result<PathBuf>> + Send;

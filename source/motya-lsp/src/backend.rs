@@ -10,15 +10,14 @@ use crate::{diagnostics::DiagnosticConverter, loader::LspConfigSource};
 #[derive(Debug)]
 pub struct Backend {
     pub client: Client,
-    pub documents: Arc<DashMap<Url, Rope>>, 
+    pub documents: Arc<DashMap<Url, Rope>>,
 }
 
 impl Backend {
     pub async fn validate(&self, uri: Url) {
-        
         let path = match uri.to_file_path() {
             Ok(p) => p,
-            Err(_) => return, 
+            Err(_) => return,
         };
 
         let source = LspConfigSource {
@@ -32,7 +31,8 @@ impl Backend {
         let converter = DiagnosticConverter::new(self.documents.clone());
         let diagnostics = converter.errors_to_diagnostics(error, &uri);
 
-        self.client.publish_diagnostics(uri, diagnostics, None).await;
-
+        self.client
+            .publish_diagnostics(uri, diagnostics, None)
+            .await;
     }
 }

@@ -1,27 +1,27 @@
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::Write;
-    use std::net::TcpListener;
-    use std::sync::Arc;
-    use std::thread;
-    use std::time::Duration;
+    use std::{fs::File, io::Write, net::TcpListener, sync::Arc, thread, time::Duration};
 
-    use motya::app_context::{pingora_opt, pingora_server_conf};
-    use motya::fs_adapter::TokioFs;
-    use motya::proxy::filters::{chain_resolver::ChainResolver, registry::FilterRegistry};
-    use motya::proxy::motya_proxy_service;
-    use motya::proxy::rate_limiter::registry::StorageRegistry;
-    use motya::proxy::upstream_factory::UpstreamFactory;
-    use motya::proxy::watcher::file_watcher::ConfigWatcher;
-    use motya_config::common_types::definitions_table::DefinitionsTable;
-    use motya_config::kdl::fs_loader::FileCollector;
-    use motya_config::loader::{ConfigLoader, FileConfigLoaderProvider};
+    use motya::{
+        app_context::{pingora_opt, pingora_server_conf},
+        fs_adapter::TokioFs,
+        proxy::{
+            filters::{chain_resolver::ChainResolver, registry::FilterRegistry},
+            motya_proxy_service,
+            rate_limiter::registry::StorageRegistry,
+            upstream_factory::UpstreamFactory,
+            watcher::file_watcher::ConfigWatcher,
+        },
+    };
+    use motya_config::{
+        common_types::definitions_table::DefinitionsTable,
+        kdl::fs_loader::FileCollector,
+        loader::{ConfigLoader, FileConfigLoaderProvider},
+    };
     use pingora::server::Server;
     use reqwest::Client;
     use tempfile::tempdir;
-    use tokio::sync::Mutex;
-    use tokio::time::timeout;
+    use tokio::{sync::Mutex, time::timeout};
 
     fn get_free_port() -> u16 {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();

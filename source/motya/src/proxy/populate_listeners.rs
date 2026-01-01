@@ -1,6 +1,5 @@
-use pingora::listeners::tls::TlsSettings;
-
 use motya_config::common_types::listeners::{ListenerKind, Listeners};
+use pingora::listeners::tls::TlsSettings;
 
 pub fn populate_listners<T>(
     listeners: &Listeners,

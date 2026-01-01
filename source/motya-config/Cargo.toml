@@ -20,7 +20,9 @@ derive_more = { version = "2.1.0", features = ["deref"] }
 humantime = "2.3.0"
 num_cpus = "1.17.0"
 rand = "0.9.2"
-insta = "1.45.1"
+insta = { version = "1.45.1",  features = ["yaml"] }
+serde = { version  ="1.0.228", features = ["derive"] }
+serde_json = "1.0.148"
 
 [dev-dependencies]
 tempfile = { workspace = true }

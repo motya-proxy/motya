@@ -1,11 +1,13 @@
-use crate::proxy::context::SessionInfo;
-use crate::proxy::filters::types::RequestFilterMod;
-use crate::proxy::rate_limiter::instance::RateLimiterInstance;
-use crate::proxy::MotyaContext;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use pingora::Result;
 use pingora_proxy::Session;
-use std::sync::Arc;
+
+use crate::proxy::{
+    context::SessionInfo, filters::types::RequestFilterMod,
+    rate_limiter::instance::RateLimiterInstance, MotyaContext,
+};
 
 pub struct RateLimitFilter {
     limiter: RateLimiterInstance,

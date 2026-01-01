@@ -1,5 +1,24 @@
 use std::{path::PathBuf, sync::Arc};
 
+use motya_config::{
+    cli::{
+        builder::CliConfigBuilder,
+        cli_struct::{Cli, Commands},
+    },
+    common_types::definitions_table::DefinitionsTable,
+    internal::Config,
+    kdl::fs_loader::FileCollector,
+    loader::{ConfigLoader, FileConfigLoaderProvider},
+};
+use pingora::{
+    server::{
+        configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf},
+        Server,
+    },
+    services::Service,
+};
+use tokio::sync::Mutex;
+
 use crate::{
     files::motya_file_server,
     fs_adapter::TokioFs,
@@ -12,28 +31,6 @@ use crate::{
         watcher::file_watcher::ConfigWatcher,
     },
 };
-
-use motya_config::{
-    cli::{
-        builder::CliConfigBuilder,
-        cli_struct::{Cli, Commands},
-    },
-    common_types::definitions_table::DefinitionsTable,
-};
-use motya_config::{
-    internal::Config,
-    kdl::fs_loader::FileCollector,
-    loader::{ConfigLoader, FileConfigLoaderProvider},
-};
-use pingora::{
-    server::{
-        configuration::{Opt as PingoraOpt, ServerConf as PingoraServerConf},
-        Server,
-    },
-    services::Service,
-};
-
-use tokio::sync::Mutex;
 
 pub struct AppContext {
     config: Config,
@@ -179,11 +176,6 @@ impl AppContext {
 
         // Apply CLI overrides & Validate
         apply_cli(&mut config, cli_args);
-        tracing::debug!(?config, "Full configuration");
-
-        tracing::info!("Validating configuration...");
-        config.validate();
-        tracing::info!("Validation complete");
 
         Ok(config)
     }

@@ -1,7 +1,8 @@
+use std::path::PathBuf;
+
 use fqdn::FQDN;
 use humantime::Duration;
-use motya_macro::{motya_node, Parser};
-use std::path::PathBuf;
+use motya_macro::{motya_node, NodeSchema, Parser};
 
 use crate::{
     common_types::key_template::KeyTemplate,
@@ -17,7 +18,7 @@ use crate::{
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "definitions")]
 pub struct DefinitionsDef {
     #[node(child)]
@@ -41,7 +42,7 @@ pub struct DefinitionsDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "modifiers")]
 pub struct ModifiersSectionDef {
     #[node(child)]
@@ -52,7 +53,7 @@ pub struct ModifiersSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "namespace")]
 pub struct ModifiersNamespaceDef {
     #[node(arg)]
@@ -66,7 +67,7 @@ pub struct ModifiersNamespaceDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "def")]
 pub struct FilterDefRef {
     #[node(prop)]
@@ -74,7 +75,7 @@ pub struct FilterDefRef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "chain-filters")]
 pub struct ChainFiltersDef {
     #[node(arg)]
@@ -89,7 +90,7 @@ pub struct ChainFiltersDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "plugins")]
 pub struct PluginsSectionDef {
     #[node(child)]
@@ -97,7 +98,7 @@ pub struct PluginsSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "plugin")]
 pub struct PluginDef {
     #[node(child, flat)]
@@ -107,7 +108,7 @@ pub struct PluginDef {
     pub load: PluginLoadDef,
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "load")]
 pub struct PluginLoadDef {
     #[node(prop)]
@@ -121,7 +122,7 @@ pub struct PluginLoadDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "key-profiles")]
 pub struct KeyProfilesSectionDef {
     #[node(child)]
@@ -132,7 +133,7 @@ pub struct KeyProfilesSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "namespace")]
 pub struct KeyProfileNamespaceDef {
     #[node(arg)]
@@ -146,7 +147,7 @@ pub struct KeyProfileNamespaceDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "template")]
 pub struct KeyProfileTemplateDef {
     #[node(arg)]
@@ -167,7 +168,7 @@ pub struct KeyProfileTemplateDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "storages")]
 pub struct StoragesSectionDef {
     #[node(child)]
@@ -175,7 +176,7 @@ pub struct StoragesSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum StorageDef {
     #[node(name = "redis")]
     Redis(RedisStorageDef),
@@ -184,7 +185,7 @@ pub enum StorageDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub struct RedisStorageDef {
     #[node(arg)]
     pub name: String,
@@ -200,7 +201,7 @@ pub struct RedisStorageDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub struct MemoryStorageDef {
     #[node(arg)]
     pub name: String,
@@ -217,7 +218,7 @@ pub struct MemoryStorageDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "rate-limits")]
 pub struct RateLimitsSectionDef {
     #[node(child, name = "policy")]
@@ -225,7 +226,7 @@ pub struct RateLimitsSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "rate-limit")]
 pub struct RateLimitPolicyDef {
     #[node(arg)]

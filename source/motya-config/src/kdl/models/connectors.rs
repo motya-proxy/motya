@@ -1,21 +1,23 @@
-use crate::kdl::models::chains::UseChainDef;
-use crate::kdl::models::transforms_order::TransformsOrderDef;
+use std::net::SocketAddr;
+
+use http::{uri::PathAndQuery, Uri};
+use motya_macro::{motya_node, NodeSchema, Parser};
+
 use crate::{
-    internal::SelectionKind,
-    kdl::models::key_profile::{HashAlgDef, KeyDef},
+    common_types::{balancer::SelectionKind, connectors::RoutingMode},
+    kdl::models::{
+        chains::UseChainDef,
+        key_profile::{HashAlgDef, KeyDef},
+        transforms_order::TransformsOrderDef,
+    },
 };
-use http::uri::PathAndQuery;
-use http::Uri;
-use miette::miette;
-use motya_macro::{motya_node, Parser};
-use std::{net::SocketAddr, str::FromStr};
 
 // =============================================================================
 // ROOT
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "connectors")]
 pub struct ConnectorsDef {
     #[node(child, name = "section")]
@@ -26,25 +28,8 @@ pub struct ConnectorsDef {
 // SECTION CONTENT
 // =============================================================================
 
-#[derive(Clone, Debug)]
-pub enum RoutingMode {
-    Exact,
-    Prefix,
-}
-
-impl FromStr for RoutingMode {
-    type Err = miette::Report;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "exact" => Ok(RoutingMode::Exact),
-            "prefix" => Ok(RoutingMode::Prefix),
-            _ => Err(miette!("'exact' | 'prefix' available")),
-        }
-    }
-}
-
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "section")]
 pub struct SectionDef {
     #[node(arg)]
@@ -71,7 +56,7 @@ pub struct SectionDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum ConnectorLeafDef {
     #[node(name = "proxy")]
     Proxy(ProxyDef),
@@ -84,7 +69,7 @@ pub enum ConnectorLeafDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "proxy")]
 pub enum ProxyDef {
     Single {
@@ -109,7 +94,7 @@ pub enum ProxyDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "server")]
 pub struct UpstreamServerDef {
     #[node(arg)]
@@ -123,7 +108,7 @@ pub struct UpstreamServerDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "return")]
 pub struct ReturnDef {
     #[node(arg)]
@@ -137,7 +122,7 @@ pub struct ReturnDef {
 // =============================================================================
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "load-balance")]
 pub struct LoadBalanceDef {
     #[node(child, name = "selection")]
@@ -151,7 +136,7 @@ pub struct LoadBalanceDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "selection")]
 pub enum SelectionDef {
     Simple {
@@ -169,7 +154,7 @@ pub enum SelectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum SelectionAlgDef {
     None,
     Inline {

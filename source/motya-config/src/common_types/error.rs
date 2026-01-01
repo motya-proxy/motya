@@ -68,7 +68,6 @@ impl ConfigError {
 }
 
 impl ParseError {
-
     pub fn new(
         msg: impl Into<String>,
         label: Option<SourceSpan>,
@@ -101,13 +100,14 @@ impl ParseError {
     }
 
     pub fn from_kdl_error(e: KdlError, src: NamedSource<String>) -> Vec<Self> {
-        e.diagnostics.into_iter().map(|d| {
-            Self {
+        e.diagnostics
+            .into_iter()
+            .map(|d| Self {
                 message: d.message.unwrap_or_else(|| "Syntax error".to_string()),
                 label: Some(d.span),
                 help: d.help,
-                src: src.clone()
-            }
-        }).collect()
+                src: src.clone(),
+            })
+            .collect()
     }
 }

@@ -1,10 +1,11 @@
-use motya_macro::{motya_node, Parser};
+use motya_macro::{motya_node, NodeSchema, Parser};
 
-use crate::common_types::key_template::KeyTemplate;
-use crate::kdl::models::transforms_order::TransformsOrderDef;
+use crate::{
+    common_types::key_template::KeyTemplate, kdl::models::transforms_order::TransformsOrderDef,
+};
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "key")]
 pub struct KeyDef {
     #[node(arg)]
@@ -15,7 +16,7 @@ pub struct KeyDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "algorithm")]
 pub struct HashAlgDef {
     #[node(prop, default = "\"xxhash64\".to_string()")]
@@ -26,7 +27,7 @@ pub struct HashAlgDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "profile")]
 pub struct KeyProfileDef {
     #[node(child)]

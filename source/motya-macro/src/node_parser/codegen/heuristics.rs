@@ -1,8 +1,9 @@
+use proc_macro2::TokenStream;
+use quote::quote;
+
 use crate::node_parser::model::{
     ArgSpec, BlockSpec, NodeModel, NodeModelKind, PropSpec, VariantFields, VariantSpec,
 };
-use proc_macro2::TokenStream;
-use quote::quote;
 
 pub struct ScoreGenerator;
 

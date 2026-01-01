@@ -1,18 +1,18 @@
-use crate::common_types::connectors::ALPN;
-use crate::internal::Config;
+use std::{net::ToSocketAddrs, str::FromStr};
+
+use http::{uri::PathAndQuery, StatusCode, Uri};
+use miette::IntoDiagnostic;
+
 use crate::{
     common_types::{
         connectors::{
-            Connectors, HttpPeerConfig, RouteMatcher, UpstreamConfig, UpstreamContextConfig,
+            Connectors, HttpPeerConfig, RouteMatcher, UpstreamConfig, UpstreamContextConfig, ALPN,
         },
         listeners::{ListenerConfig, ListenerKind, Listeners},
         simple_response_type::SimpleResponseConfig,
     },
-    internal::ProxyConfig,
+    internal::{Config, ProxyConfig},
 };
-use http::{uri::PathAndQuery, StatusCode, Uri};
-use miette::IntoDiagnostic;
-use std::{net::ToSocketAddrs, str::FromStr};
 
 pub enum RouteAction {
     Static(String),

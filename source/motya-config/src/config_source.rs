@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use kdl::KdlDocument;
 use miette::Result;
-use std::path::PathBuf;
 
 use crate::common_types::error::ConfigError;
 
@@ -8,11 +9,13 @@ use crate::common_types::error::ConfigError;
 pub trait ConfigSource: Send + Sync + Default + Clone {
     async fn collect(&self, entry_path: PathBuf) -> Result<Vec<(KdlDocument, String)>>;
 
-    async fn collect_lossy(&self, entry_path: PathBuf) -> (Vec<(KdlDocument, String)>, ConfigError) {
+    async fn collect_lossy(
+        &self,
+        entry_path: PathBuf,
+    ) -> (Vec<(KdlDocument, String)>, ConfigError) {
         match self.collect(entry_path).await {
             Ok(docs) => (docs, ConfigError::default()),
             Err(report) => {
-                
                 let err = if let Some(e) = report.downcast_ref::<ConfigError>() {
                     e.clone()
                 } else {
@@ -22,5 +25,4 @@ pub trait ConfigSource: Send + Sync + Default + Clone {
             }
         }
     }
-
 }

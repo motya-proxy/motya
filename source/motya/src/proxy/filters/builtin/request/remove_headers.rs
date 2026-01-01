@@ -1,5 +1,12 @@
 use std::collections::BTreeMap;
 
+use async_trait::async_trait;
+use motya_config::common_types::value::Value;
+use pingora::{Error, Result};
+use pingora_http::RequestHeader;
+use pingora_proxy::Session;
+use regex::Regex;
+
 use crate::proxy::{
     filters::{
         builtin::helpers::{ConfigMapExt, RequiredValueExt},
@@ -7,12 +14,6 @@ use crate::proxy::{
     },
     MotyaContext,
 };
-use async_trait::async_trait;
-use motya_config::common_types::value::Value;
-use pingora::{Error, Result};
-use pingora_http::RequestHeader;
-use pingora_proxy::Session;
-use regex::Regex;
 
 pub struct RemoveHeaderKeyRegex {
     regex: Regex,

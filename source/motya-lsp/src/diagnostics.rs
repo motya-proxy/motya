@@ -1,8 +1,9 @@
 use std::sync::Arc;
+
 use dashmap::DashMap;
+use motya_config::common_types::error::{ConfigError, ParseError};
 use ropey::Rope;
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Position, Range, Url};
-use motya_config::common_types::error::{ConfigError, ParseError};
 
 pub struct DiagnosticConverter {
     documents: Arc<DashMap<Url, Rope>>,
@@ -26,32 +27,34 @@ impl DiagnosticConverter {
     }
 
     fn parse_error_to_diagnostic(&self, err: &ParseError, current_uri: &Url) -> Option<Diagnostic> {
-        
         let source_name = err.src.name();
-        
-        let current_path_lossy = current_uri.to_file_path().ok()?.to_string_lossy().to_string();
-        
+
+        let current_path_lossy = current_uri
+            .to_file_path()
+            .ok()?
+            .to_string_lossy()
+            .to_string();
+
         if !source_name.is_empty() && source_name != current_path_lossy {
             return None;
         }
         let msg = if let Some(help) = &err.help {
             help
-        }
-        else {
+        } else {
             &err.message
         };
-        
+
         let Some(span) = err.label else {
-             return Some(Diagnostic {
+            return Some(Diagnostic {
                 message: msg.clone(),
                 range: Range::default(),
                 severity: Some(DiagnosticSeverity::ERROR),
                 ..Default::default()
-             });
+            });
         };
 
         let rope = self.documents.get(current_uri)?;
-        
+
         let start_byte = span.offset();
         let end_byte = start_byte + span.len();
 

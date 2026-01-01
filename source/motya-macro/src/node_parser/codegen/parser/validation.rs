@@ -1,7 +1,8 @@
-use super::Namespaces;
-use crate::node_parser::model::{ArgSpec, BlockSpec, ParseOptions, PropSpec};
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use super::Namespaces;
+use crate::node_parser::model::{ArgSpec, BlockSpec, ParseOptions, PropSpec};
 
 pub struct ValidationGenerator<'a> {
     namespaces: &'a Namespaces,

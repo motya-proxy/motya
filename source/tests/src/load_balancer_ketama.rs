@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-use std::io::Write;
-use std::net::TcpListener;
-use std::thread;
-use std::time::Duration;
+use std::{collections::HashMap, io::Write, net::TcpListener, thread, time::Duration};
 
 use motya::app_context::AppContext;
 use motya_config::cli::cli_struct::Cli;
 use reqwest::Client;
 use tempfile::NamedTempFile;
-use wiremock::matchers::any;
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{matchers::any, Mock, MockServer, ResponseTemplate};
 
 const KETAMA_CONFIG_TEMPLATE: &str = r#"
 system { }

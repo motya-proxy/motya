@@ -1,7 +1,8 @@
-use super::model::DocTokens;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use syn::{Attribute, Expr, ExprLit, Lit, Meta, Type};
+
+use super::model::DocTokens;
 
 pub struct TypeAnalyzer;
 impl TypeAnalyzer {
@@ -103,7 +104,12 @@ impl DocParser {
         }
 
         let items = entries.iter().map(|(l, t)| {
-            quote! { crate::kdl::schema::definitions::DocEntry { lang: #l, text: #t } }
+            quote! {
+                crate::kdl::schema::definitions::DocEntry {
+                    lang: std::borrow::Cow::Borrowed(#l),
+                    text: std::borrow::Cow::Borrowed(#t)
+                }
+            }
         });
         DocTokens(quote! { &[ #(#items),* ] })
     }

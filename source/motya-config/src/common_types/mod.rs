@@ -1,4 +1,5 @@
 pub mod bad;
+pub mod balancer;
 pub mod builtin_filters_name;
 pub mod connectors;
 pub mod definitions;

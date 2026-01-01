@@ -1,10 +1,11 @@
+use proc_macro2::TokenStream;
+use quote::quote;
+
 use super::content_gen::ContentGenerator;
 use crate::node_parser::{
     codegen::parser::{Namespaces, types::ParseTarget},
     model::NodeModel,
 };
-use proc_macro2::TokenStream;
-use quote::quote;
 
 pub struct StructGenerator<'a> {
     model: &'a NodeModel,

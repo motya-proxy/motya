@@ -1,11 +1,13 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
-use crate::common_types::{
-    connectors::Connectors, definitions::BalancerConfig, file_server::FileServerConfig,
-    listeners::Listeners,
-};
-
-use tracing::warn;
+use crate::
+    common_types::{
+        balancer::{BalancerConfig, DiscoveryKind, HealthCheckKind, SelectionKind},
+        connectors::Connectors,
+        file_server::FileServerConfig,
+        listeners::Listeners,
+    }
+;
 
 /// Motya's internal configuration
 #[derive(Debug, Clone, PartialEq)]
@@ -18,43 +20,6 @@ pub struct Config {
     pub upgrade: bool,
     pub basic_proxies: Vec<ProxyConfig>,
     pub file_servers: Vec<FileServerConfig>,
-}
-
-impl Config {
-    pub fn validate(&self) {
-        // This is currently mostly ad-hoc checks, we should potentially be a bit
-        // more systematic about this.
-        if self.daemonize {
-            if let Some(pf) = self.pid_file.as_ref() {
-                // NOTE: currently due to https://github.com/cloudflare/pingora/issues/331,
-                // we are not able to use relative paths.
-                assert!(pf.is_absolute(), "pid file path must be absolute, see https://github.com/cloudflare/pingora/issues/331");
-            } else {
-                panic!("Daemonize commanded but no pid file set!");
-            }
-        } else if let Some(pf) = self.pid_file.as_ref() {
-            if !pf.is_absolute() {
-                warn!("pid file path must be absolute. Currently: {:?}, see https://github.com/cloudflare/pingora/issues/331", pf);
-            }
-        }
-        if self.upgrade {
-            assert!(
-                cfg!(target_os = "linux"),
-                "Upgrade is only supported on linux!"
-            );
-            if let Some(us) = self.upgrade_socket.as_ref() {
-                // NOTE: currently due to https://github.com/cloudflare/pingora/issues/331,
-                // we are not able to use relative paths.
-                assert!(us.is_absolute(), "upgrade socket path must be absolute, see https://github.com/cloudflare/pingora/issues/331");
-            } else {
-                panic!("Upgrade commanded but upgrade socket path not set!");
-            }
-        } else if let Some(us) = self.upgrade_socket.as_ref() {
-            if !us.is_absolute() {
-                warn!("upgrade socket path must be absolute. Currently: {:?}, see https://github.com/cloudflare/pingora/issues/331", us);
-            }
-        }
-    }
 }
 
 //
@@ -85,42 +50,6 @@ impl Default for UpstreamOptions {
         }
     }
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum SelectionKind {
-    RoundRobin,
-    Random,
-    FvnHash,
-    KetamaHashing,
-}
-
-impl FromStr for SelectionKind {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "RoundRobin" => Ok(SelectionKind::RoundRobin),
-            "Random" => Ok(SelectionKind::Random),
-            "FNV" => Ok(SelectionKind::FvnHash),
-            "Ketama" => Ok(SelectionKind::KetamaHashing),
-            str => Err(format!("unknown selection kind, {str}")),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum HealthCheckKind {
-    None,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum DiscoveryKind {
-    Static,
-}
-
-//
-// Boilerplate trait impls
-//
 
 impl Default for Config {
     fn default() -> Self {

@@ -1,10 +1,50 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{DeriveInput, ItemFn, LitStr, parse_macro_input, parse_quote};
+use syn::{DeriveInput, parse_macro_input, parse_quote};
 
 use crate::node_parser::codegen::{parser::ParserGenerator, schema::SchemaGenerator};
 
 mod node_parser;
+
+/// Core macro for generating KDL schema metadata (`impl GetSchema`).
+///
+/// This macro transforms Rust structures into a formal specification used by LSP servers
+/// for real-time autocompletion, structural validation, and on-the-fly documentation.
+///
+/// ### Architectural Highlights:
+/// - **Context-Aware**: Supports dynamic property expansion through `ValueKind::Catalog` (mixins).
+/// - **Polymorphic**: Correctly represents Enum variants as a set of alternative node shapes.
+/// - **Trait-based**: Leverages the `KdlValueInfo` trait to resolve value types, keeping
+///   the macro decoupled from specific Rust types.
+///
+/// ### Generated Metadata:
+/// - `matcher`: Defines whether the node uses a fixed name (`Keyword`) or a
+///   user-defined identifier (`Variable`).
+/// - `args` / `props`: Schemas for positional and named values, including type metadata.
+/// - `children`: Recursive definition of allowed nested nodes (Strict or Dynamic blocks).
+///
+/// ### Supported Attributes (`#[node(...)]`):
+/// - `name = "..."`: Sets a fixed KDL keyword (static node name).
+/// - `node_name`: Identifies the field that captures the node's tag (sets matcher to `Variable`).
+/// - `schema_name = "..."`: Registers a value as a `Catalog` reference. The LSP will use
+///   this to "mix in" properties from external registries (e.g., plugins).
+/// - `proxy = "Path"`: Delegates schema generation to a different type.
+/// - `flatten`: Inlines the fields of a nested object directly into the current context.
+///
+/// ### Documentation Localization:
+/// Automatically parses `///` doc comments. Supports multilingual descriptions
+/// using the `@lang:` prefix within the comment block.
+#[proc_macro_derive(NodeSchema, attributes(node))]
+pub fn derive_node_definition(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    match node_parser::parse::parse(input) {
+        Ok(model) => {
+            let schema_gen = SchemaGenerator::new(&model);
+            schema_gen.generate().into()
+        }
+        Err(e) => e.to_compile_error().into(),
+    }
+}
 
 /// Derive macro for the `KdlParsable` trait.
 ///
@@ -74,41 +114,6 @@ mod node_parser;
 /// 3. Argument/Property type checking (including `NonZero` checks).
 /// 4. Value constraints (`min`, `max`, custom validators).
 /// 5. Required field/child presence.
-#[proc_macro_derive(NodeDefinition, attributes(node))]
-pub fn derive_node_definition(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as syn::DeriveInput);
-    match node_parser::parse::parse(input) {
-        Ok(model) => {
-            let schema_gen = SchemaGenerator::new(&model);
-            schema_gen.generate().into()
-        }
-        Err(e) => e.to_compile_error().into(),
-    }
-}
-
-/// Derive macro for the `NodeDefinition` trait.
-///
-/// This macro generates static metadata about a KDL node. It distinguishes between
-/// "Commands" (nodes with a fixed keyword) and "Value Wrappers".
-///
-/// # Metadata Generated
-/// - `KEYWORD`: The identifier used to trigger this node.
-/// - `SCHEMA_NAME`: The human-readable label (e.g., "SocketAddr").
-/// - `ALLOWED_NAMES`: List of all valid node names (useful for Enum hints).
-/// - `DOCS`, `PROPS`, `ARGS`, `BLOCK`: Detailed structural schema.
-///
-/// # Auto-derived Traits
-/// - `KdlSchemaType`: Allows other nodes to reference this schema.
-///
-/// # Supported Attributes (`#[node(...)]`)
-/// - `name = "..."`: Sets the fixed KDL keyword.
-/// - `node_name`: Captures the node's tag (sets `KEYWORD` to `None`).
-/// - `schema_name = "..."`: Overrides the name used in documentation.
-/// - `proxy = "Type"`: Uses the metadata of `Type` instead of the field's actual type (useful for Proxy Pattern).
-/// - `#[node(arg)]`, `#[node(prop)]`, `#[node(child)]`: Standard schema definitions.
-///
-/// # Documentation Localization
-/// Parses `///` comments. Use `@lang:` to categorize text.
 #[proc_macro_derive(Parser, attributes(node))]
 pub fn derive_parser(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
@@ -167,9 +172,6 @@ pub fn motya_node(_: TokenStream, item: TokenStream) -> TokenStream {
     data_item
         .attrs
         .push(parse_quote!(#[allow(non_camel_case_types, non_snake_case)]));
-    data_item
-        .attrs
-        .push(parse_quote!(#[doc = "Inner data container holding the parsed values."]));
 
     let wrapper_struct = quote! {
         #[derive(Clone)]
@@ -247,20 +249,16 @@ pub fn motya_node(_: TokenStream, item: TokenStream) -> TokenStream {
                 #data_ident::match_score(ctx)
             }
         }
-        // impl crate::kdl::schema::definitions::NodeDefinition for #original_ident {
-        //     const KEYWORD: Option<&'static str> = #data_ident::KEYWORD;
-        //     const SCHEMA_NAME: &'static str = #data_ident::SCHEMA_NAME;
-        //     const IS_VALUE_WRAPPER: bool = #data_ident::IS_VALUE_WRAPPER;
-        //     const DOCS: &'static [crate::kdl::schema::definitions::DocEntry] = #data_ident::DOCS;
-        //     const PROPS: &'static [crate::kdl::schema::definitions::PropDef] = #data_ident::PROPS;
-        //     const ARGS: &'static [crate::kdl::schema::definitions::ArgDef] = #data_ident::ARGS;
-        //     const BLOCK: crate::kdl::schema::definitions::BlockContent = #data_ident::BLOCK;
-        //     const ALLOWED_NAMES: &'static [&'static str] = #data_ident::ALLOWED_NAMES;
-        // }
+
+        impl crate::kdl::schema::definitions::GetSchema for #original_ident {
+            fn schemas(ctx: &mut crate::kdl::schema::schema_context::SchemaContext) -> Vec<crate::kdl::schema::definitions::NodeSchema> {
+                #data_ident::schemas(ctx)
+            }
+        }
     };
 
     let proxy_method = quote! {
-       impl #original_ident {
+        impl #original_ident {
         pub fn parse_as<S, T>(
             ctx: &crate::kdl::parser::ctx::ParseContext,
             state: &S
@@ -285,7 +283,7 @@ pub fn motya_node(_: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
         }
-       }
+        }
     };
 
     let expanded = quote! {
@@ -430,59 +428,4 @@ fn clean_err_attributes(input: &mut DeriveInput) {
         }
         _ => {}
     }
-}
-
-#[proc_macro_attribute]
-pub fn validate(args: TokenStream, input: TokenStream) -> TokenStream {
-    let func = parse_macro_input!(input as ItemFn);
-
-    let mut expected_node_name: Option<String> = None;
-
-    let parser = syn::meta::parser(|meta| {
-        if meta.path.is_ident("ensure_node_name") {
-            let value: LitStr = meta.value()?.parse()?;
-            expected_node_name = Some(value.value());
-            Ok(())
-        } else {
-            Err(meta.error("Unsupported argument. Use 'ensure_node_name = \"...\"'"))
-        }
-    });
-
-    parse_macro_input!(args with parser);
-
-    let expected_name = match expected_node_name {
-        Some(name) => name,
-        None => {
-            return syn::Error::new(
-                proc_macro2::Span::call_site(),
-                "The #[validate] attribute requires the `ensure_node_name` argument.",
-            )
-            .to_compile_error()
-            .into();
-        }
-    };
-
-    let fn_vis = &func.vis;
-    let fn_sig = &func.sig;
-    let fn_attrs = &func.attrs;
-    let fn_block = &func.block;
-
-    let output = quote! {
-        #(#fn_attrs)*
-        #fn_vis #fn_sig {
-            let __actual_name = ctx.name()?;
-
-            if __actual_name != #expected_name {
-                return Err(ctx.error(format!(
-                    "Invalid section node: expected '{}', found '{}'.",
-                    #expected_name,
-                    __actual_name
-                )));
-            }
-
-            #fn_block
-        }
-    };
-
-    output.into()
 }

@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::env;
+use std::{collections::HashMap, env};
 
 #[derive(Default, Clone, Debug)]
 pub struct VarRegistry {
@@ -24,11 +23,13 @@ impl VarRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::kdl::parser::ctx::ParseContext;
-    use crate::kdl::parser::parsable::KdlParsable;
-    use crate::var_registry::VarRegistry;
     use kdl::KdlDocument;
     use motya_macro::Parser;
+
+    use crate::{
+        kdl::parser::{ctx::ParseContext, parsable::KdlParsable},
+        var_registry::VarRegistry,
+    };
 
     #[test]
     fn test_threads_from_sys_var() {

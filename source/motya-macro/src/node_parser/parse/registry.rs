@@ -1,6 +1,7 @@
+use darling::Error as DarlingError;
+
 use super::analyzer::AnalyzedField;
 use crate::node_parser::{model::*, utils::is_primitive_type};
-use darling::Error as DarlingError;
 
 #[derive(Default)]
 pub struct FieldRegistry {

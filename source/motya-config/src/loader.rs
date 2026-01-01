@@ -1,14 +1,17 @@
-use miette::Result;
 use std::path::PathBuf;
 
-use crate::common_types::definitions_table::DefinitionsTable;
-use crate::common_types::error::ConfigError;
-use crate::config_source::ConfigSource;
-use crate::internal::Config;
-use crate::kdl::linker::ConfigLinker;
-use crate::kdl::models::root::RootDef;
-use crate::kdl::parser::ctx::ParseContext;
-use crate::kdl::parser::parsable::KdlParsable;
+use miette::Result;
+
+use crate::{
+    common_types::{definitions_table::DefinitionsTable, error::ConfigError},
+    config_source::ConfigSource,
+    internal::Config,
+    kdl::{
+        linker::ConfigLinker,
+        models::root::RootDef,
+        parser::{ctx::ParseContext, parsable::KdlParsable},
+    },
+};
 
 #[allow(async_fn_in_trait)]
 pub trait FileConfigLoaderProvider {
@@ -30,7 +33,6 @@ impl<S: ConfigSource> FileConfigLoaderProvider for ConfigLoader<S> {
         path: Option<PathBuf>,
         global_definitions: &mut DefinitionsTable,
     ) -> miette::Result<Option<Config>> {
-        
         let (config, errors) = self.load_lossy(path, global_definitions).await;
 
         if !errors.is_empty() {
@@ -39,7 +41,6 @@ impl<S: ConfigSource> FileConfigLoaderProvider for ConfigLoader<S> {
 
         Ok(config)
     }
-
 }
 
 impl<S: ConfigSource> ConfigLoader<S> {
@@ -52,7 +53,6 @@ impl<S: ConfigSource> ConfigLoader<S> {
         path: Option<PathBuf>,
         global_definitions: &mut DefinitionsTable,
     ) -> (Option<Config>, ConfigError) {
-
         let Some(path) = path else {
             return (None, ConfigError::default());
         };
@@ -60,10 +60,10 @@ impl<S: ConfigSource> ConfigLoader<S> {
         let (documents, mut errors) = self.source.collect_lossy(path).await;
 
         let mut roots = Vec::with_capacity(documents.len());
-        
+
         for (doc, source_name) in documents {
             let ctx = ParseContext::new(doc, &source_name);
-            
+
             match RootDef::parse_node(&ctx, &()) {
                 Ok(root) => roots.push(root),
                 Err(config_error) => {
@@ -77,9 +77,8 @@ impl<S: ConfigSource> ConfigLoader<S> {
             match linker.link(roots) {
                 Ok(cfg) => Some(cfg),
                 Err(config_error) => {
-
                     errors.merge(config_error);
-                    None 
+                    None
                 }
             }
         } else {
@@ -88,7 +87,6 @@ impl<S: ConfigSource> ConfigLoader<S> {
 
         (config, errors)
     }
-
 }
 
 #[cfg(test)]
@@ -99,9 +97,7 @@ mod tests {
     use miette::Result;
 
     use crate::{
-        common_types::definitions_table::DefinitionsTable,
-        config_source::ConfigSource,
-        loader::{ConfigLoader, FileConfigLoaderProvider},
+        common_types::definitions_table::DefinitionsTable, config_source::ConfigSource, kdl::schema::schema_context::SchemaContext, loader::{ConfigLoader, FileConfigLoaderProvider}
     };
 
     #[derive(Clone, Default)]
@@ -200,4 +196,15 @@ mod tests {
 
         insta::assert_debug_snapshot!(config);
     }
+
+    #[test]
+    fn test_kdl_schema_serialization_snapshot() {
+        use crate::kdl::models::root::RootDef;
+        use crate::kdl::schema::definitions::GetSchema;
+        let mut ctx = SchemaContext::default();
+        let schema = RootDef::schemas(&mut ctx);
+
+        insta::assert_yaml_snapshot!(schema);
+    }
+
 }

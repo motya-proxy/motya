@@ -1,0 +1,1350 @@
+---
+source: source/motya-config/src/loader.rs
+expression: schema
+---
+- matcher:
+    keyword: "<unknown>"
+  description: []
+  examples: []
+  args: []
+  props: []
+  children:
+    fixed:
+      - matcher:
+          keyword: system
+        description: []
+        examples: []
+        args: []
+        props: []
+        children:
+          fixed:
+            - matcher:
+                keyword: threads-per-service
+              description: []
+              examples: []
+              args:
+                - name: value
+                  description: []
+                  kind: int
+                  required: true
+                  default: ~
+              props: []
+              children: none
+            - matcher:
+                keyword: daemonize
+              description: []
+              examples: []
+              args:
+                - name: value
+                  description: []
+                  kind: bool
+                  required: true
+                  default: ~
+              props: []
+              children: none
+            - matcher:
+                keyword: upgrade-socket
+              description: []
+              examples: []
+              args:
+                - name: value
+                  description: []
+                  kind:
+                    typedString: path
+                  required: true
+                  default: ~
+              props: []
+              children: none
+            - matcher:
+                keyword: pid-file
+              description: []
+              examples: []
+              args:
+                - name: value
+                  description: []
+                  kind:
+                    typedString: path
+                  required: true
+                  default: ~
+              props: []
+              children: none
+            - matcher:
+                keyword: providers
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: files
+                    description: []
+                    examples: []
+                    args: []
+                    props:
+                      - name: watch
+                        description: []
+                        kind: bool
+                        required: false
+                        default: ~
+                    children: none
+                  - matcher:
+                      keyword: s3
+                    description: []
+                    examples: []
+                    args: []
+                    props:
+                      - name: bucket
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                      - name: key
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                      - name: region
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                      - name: interval
+                        description: []
+                        kind: string
+                        required: false
+                        default: ~
+                      - name: endpoint
+                        description: []
+                        kind: string
+                        required: false
+                        default: ~
+                    children: none
+                  - matcher:
+                      keyword: http
+                    description: []
+                    examples: []
+                    args: []
+                    props:
+                      - name: address
+                        description: []
+                        kind:
+                          typedString: socket-addr
+                        required: true
+                        default: ~
+                      - name: path
+                        description: []
+                        kind:
+                          typedString: path-query
+                        required: true
+                        default: ~
+                      - name: persist
+                        description: []
+                        kind: bool
+                        required: false
+                        default: ~
+                    children: none
+      - matcher:
+          keyword: imports
+        description: []
+        examples: []
+        args: []
+        props: []
+        children:
+          fixed:
+            - matcher:
+                variable:
+                  label: value
+              description: []
+              examples: []
+              args: []
+              props: []
+              children: none
+      - matcher:
+          keyword: definitions
+        description: []
+        examples: []
+        args: []
+        props: []
+        children:
+          fixed:
+            - matcher:
+                keyword: modifiers
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: namespace
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: namespace
+                          description: []
+                          examples: []
+                          args: []
+                          props: []
+                          children:
+                            recursive: namespace
+                        - matcher:
+                            keyword: def
+                          description: []
+                          examples: []
+                          args: []
+                          props:
+                            - name: name
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          children: none
+                  - matcher:
+                      keyword: chain-filters
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: filter
+                          description: []
+                          examples: []
+                          args:
+                            - name: name
+                              description: []
+                              kind:
+                                typedString: fqdn
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: rate-limit
+                          description: []
+                          examples: []
+                          args:
+                            - name: _tup_0
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: rate-limit
+                          description: []
+                          examples: []
+                          args: []
+                          props: []
+                          children:
+                            fixed:
+                              - matcher:
+                                  keyword: algorithm
+                                description: []
+                                examples: []
+                                args:
+                                  - name: value
+                                    description: []
+                                    kind: string
+                                    required: true
+                                    default: ~
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: storage
+                                description: []
+                                examples: []
+                                args:
+                                  - name: value
+                                    description: []
+                                    kind: string
+                                    required: true
+                                    default: ~
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: key
+                                description: []
+                                examples: []
+                                args:
+                                  - name: template
+                                    description: []
+                                    kind:
+                                      typedString: key-template
+                                    required: true
+                                    default: ~
+                                props:
+                                  - name: fallback
+                                    description: []
+                                    kind:
+                                      typedString: key-template
+                                    required: false
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: transforms-order
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children:
+                                  fixed:
+                                    - matcher:
+                                        keyword: truncate
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props:
+                                        - name: length
+                                          description: []
+                                          kind: int
+                                          required: true
+                                          default: ~
+                                      children: none
+                                    - matcher:
+                                        keyword: lowercase
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: remove-query-params
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: strip-trailing-slash
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                              - matcher:
+                                  keyword: burst
+                                description: []
+                                examples: []
+                                args:
+                                  - name: value
+                                    description: []
+                                    kind: int
+                                    required: true
+                                    default: ~
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: rate
+                                description: []
+                                examples: []
+                                args:
+                                  - name: value
+                                    description: []
+                                    kind: float
+                                    required: true
+                                    default: ~
+                                props: []
+                                children: none
+            - matcher:
+                keyword: plugins
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: plugin
+                    description: []
+                    examples: []
+                    args: []
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: name
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind:
+                                typedString: fqdn
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: load
+                          description: []
+                          examples: []
+                          args: []
+                          props:
+                            - name: path
+                              description: []
+                              kind:
+                                typedString: path
+                              required: false
+                              default: ~
+                            - name: url
+                              description: []
+                              kind: string
+                              required: false
+                              default: ~
+                          children: none
+            - matcher:
+                keyword: key-profiles
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: namespace
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: namespace
+                          description: []
+                          examples: []
+                          args: []
+                          props: []
+                          children:
+                            recursive: namespace
+                        - matcher:
+                            keyword: template
+                          description: []
+                          examples: []
+                          args:
+                            - name: name
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children:
+                            fixed:
+                              - matcher:
+                                  keyword: key
+                                description: []
+                                examples: []
+                                args:
+                                  - name: template
+                                    description: []
+                                    kind:
+                                      typedString: key-template
+                                    required: true
+                                    default: ~
+                                props:
+                                  - name: fallback
+                                    description: []
+                                    kind:
+                                      typedString: key-template
+                                    required: false
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: algorithm
+                                description: []
+                                examples: []
+                                args: []
+                                props:
+                                  - name: name
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                  - name: seed
+                                    description: []
+                                    kind: int
+                                    required: false
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: transforms-order
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children:
+                                  fixed:
+                                    - matcher:
+                                        keyword: truncate
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props:
+                                        - name: length
+                                          description: []
+                                          kind: int
+                                          required: true
+                                          default: ~
+                                      children: none
+                                    - matcher:
+                                        keyword: lowercase
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: remove-query-params
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: strip-trailing-slash
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                  - matcher:
+                      keyword: template
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: key
+                          description: []
+                          examples: []
+                          args:
+                            - name: template
+                              description: []
+                              kind:
+                                typedString: key-template
+                              required: true
+                              default: ~
+                          props:
+                            - name: fallback
+                              description: []
+                              kind:
+                                typedString: key-template
+                              required: false
+                              default: ~
+                          children: none
+                        - matcher:
+                            keyword: algorithm
+                          description: []
+                          examples: []
+                          args: []
+                          props:
+                            - name: name
+                              description: []
+                              kind: string
+                              required: false
+                              default: ~
+                            - name: seed
+                              description: []
+                              kind: int
+                              required: false
+                              default: ~
+                          children: none
+                        - matcher:
+                            keyword: transforms-order
+                          description: []
+                          examples: []
+                          args: []
+                          props: []
+                          children:
+                            fixed:
+                              - matcher:
+                                  keyword: truncate
+                                description: []
+                                examples: []
+                                args: []
+                                props:
+                                  - name: length
+                                    description: []
+                                    kind: int
+                                    required: true
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: lowercase
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: remove-query-params
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: strip-trailing-slash
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+            - matcher:
+                keyword: storages
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: redis
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: addresses
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: password
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: timeout
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind:
+                                typedString: duration
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                  - matcher:
+                      keyword: memory
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: max-keys
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: int
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: cleanup-interval
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind:
+                                typedString: duration
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+            - matcher:
+                keyword: rate-limits
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: policy
+                    description: []
+                    examples: []
+                    args:
+                      - name: name
+                        description: []
+                        kind: string
+                        required: true
+                        default: ~
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: algorithm
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: storage
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: string
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: key
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind:
+                                typedString: key-template
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: rate
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind:
+                                typedString: duration
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: burst
+                          description: []
+                          examples: []
+                          args:
+                            - name: value
+                              description: []
+                              kind: int
+                              required: true
+                              default: ~
+                          props: []
+                          children: none
+                        - matcher:
+                            keyword: transforms-order
+                          description: []
+                          examples: []
+                          args: []
+                          props: []
+                          children:
+                            fixed:
+                              - matcher:
+                                  keyword: truncate
+                                description: []
+                                examples: []
+                                args: []
+                                props:
+                                  - name: length
+                                    description: []
+                                    kind: int
+                                    required: true
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: lowercase
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: remove-query-params
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: strip-trailing-slash
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children: none
+      - matcher:
+          keyword: services
+        description: []
+        examples: []
+        args: []
+        props: []
+        children:
+          fixed:
+            - matcher:
+                variable:
+                  label: name
+              description: []
+              examples: []
+              args: []
+              props: []
+              children:
+                fixed:
+                  - matcher:
+                      keyword: listeners
+                    description: []
+                    examples: []
+                    args: []
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            variable:
+                              label: addr
+                          description: []
+                          examples: []
+                          args: []
+                          props:
+                            - name: cert-path
+                              description: []
+                              kind: string
+                              required: false
+                              default: ~
+                            - name: key-path
+                              description: []
+                              kind: string
+                              required: false
+                              default: ~
+                            - name: offer-h2
+                              description: []
+                              kind: bool
+                              required: false
+                              default: ~
+                          children: none
+                  - matcher:
+                      keyword: file-server
+                    description: []
+                    examples: []
+                    args: []
+                    props:
+                      - name: root
+                        description: []
+                        kind:
+                          typedString: path
+                        required: false
+                        default: ~
+                    children: none
+                  - matcher:
+                      keyword: connectors
+                    description: []
+                    examples: []
+                    args: []
+                    props: []
+                    children:
+                      fixed:
+                        - matcher:
+                            keyword: section
+                          description: []
+                          examples: []
+                          args:
+                            - name: path
+                              description: []
+                              kind:
+                                typedString: path-query
+                              required: true
+                              default: ~
+                          props:
+                            - name: as
+                              description: []
+                              kind:
+                                enum:
+                                  - exact
+                                  - prefix
+                              required: false
+                              default: ~
+                          children:
+                            fixed:
+                              - matcher:
+                                  keyword: proxy
+                                description: []
+                                examples: []
+                                args:
+                                  - name: url
+                                    description: []
+                                    kind:
+                                      typedString: uri
+                                    required: true
+                                    default: ~
+                                props:
+                                  - name: tls-sni
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                  - name: proto
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                children: none
+                              - matcher:
+                                  keyword: proxy
+                                description: []
+                                examples: []
+                                args: []
+                                props:
+                                  - name: tls-sni
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                  - name: proto
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                children:
+                                  fixed:
+                                    - matcher:
+                                        keyword: server
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: address
+                                          description: []
+                                          kind:
+                                            typedString: socket-addr
+                                          required: true
+                                          default: ~
+                                      props:
+                                        - name: weight
+                                          description: []
+                                          kind: int
+                                          required: false
+                                          default: ~
+                                      children: none
+                              - matcher:
+                                  keyword: return
+                                description: []
+                                examples: []
+                                args:
+                                  - name: code
+                                    description: []
+                                    kind: int
+                                    required: true
+                                    default: ~
+                                  - name: body
+                                    description: []
+                                    kind: string
+                                    required: false
+                                    default: ~
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: load-balance
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children:
+                                  fixed:
+                                    - matcher:
+                                        keyword: selection
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: kind
+                                          description: []
+                                          kind:
+                                            enum:
+                                              - RoundRobin
+                                              - Random
+                                              - FNV
+                                              - Ketama
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: selection
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: kind
+                                          description: []
+                                          kind:
+                                            enum:
+                                              - RoundRobin
+                                              - Random
+                                              - FNV
+                                              - Ketama
+                                          required: true
+                                          default: ~
+                                      props:
+                                        - name: use-key-profile
+                                          description: []
+                                          kind: string
+                                          required: true
+                                          default: ~
+                                      children: none
+                                    - matcher:
+                                        keyword: selection
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: selection
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: kind
+                                          description: []
+                                          kind:
+                                            enum:
+                                              - RoundRobin
+                                              - Random
+                                              - FNV
+                                              - Ketama
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children:
+                                        fixed:
+                                          - matcher:
+                                              keyword: key
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: template
+                                                description: []
+                                                kind:
+                                                  typedString: key-template
+                                                required: true
+                                                default: ~
+                                            props:
+                                              - name: fallback
+                                                description: []
+                                                kind:
+                                                  typedString: key-template
+                                                required: false
+                                                default: ~
+                                            children: none
+                                          - matcher:
+                                              keyword: algorithm
+                                            description: []
+                                            examples: []
+                                            args: []
+                                            props:
+                                              - name: name
+                                                description: []
+                                                kind: string
+                                                required: false
+                                                default: ~
+                                              - name: seed
+                                                description: []
+                                                kind: int
+                                                required: false
+                                                default: ~
+                                            children: none
+                                          - matcher:
+                                              keyword: transforms-order
+                                            description: []
+                                            examples: []
+                                            args: []
+                                            props: []
+                                            children:
+                                              fixed:
+                                                - matcher:
+                                                    keyword: truncate
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props:
+                                                    - name: length
+                                                      description: []
+                                                      kind: int
+                                                      required: true
+                                                      default: ~
+                                                  children: none
+                                                - matcher:
+                                                    keyword: lowercase
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                                - matcher:
+                                                    keyword: remove-query-params
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                                - matcher:
+                                                    keyword: strip-trailing-slash
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                    - matcher:
+                                        keyword: health-check
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: value
+                                          description: []
+                                          kind: string
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: discovery
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: value
+                                          description: []
+                                          kind: string
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children: none
+                              - matcher:
+                                  keyword: Reference
+                                description: []
+                                examples: []
+                                args:
+                                  - name: name
+                                    description: []
+                                    kind: string
+                                    required: true
+                                    default: ~
+                                props: []
+                                children: none
+                              - matcher:
+                                  keyword: Inline
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children:
+                                  fixed:
+                                    - matcher:
+                                        keyword: filter
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: name
+                                          description: []
+                                          kind:
+                                            typedString: fqdn
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: rate-limit
+                                      description: []
+                                      examples: []
+                                      args:
+                                        - name: _tup_0
+                                          description: []
+                                          kind: string
+                                          required: true
+                                          default: ~
+                                      props: []
+                                      children: none
+                                    - matcher:
+                                        keyword: rate-limit
+                                      description: []
+                                      examples: []
+                                      args: []
+                                      props: []
+                                      children:
+                                        fixed:
+                                          - matcher:
+                                              keyword: algorithm
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: value
+                                                description: []
+                                                kind: string
+                                                required: true
+                                                default: ~
+                                            props: []
+                                            children: none
+                                          - matcher:
+                                              keyword: storage
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: value
+                                                description: []
+                                                kind: string
+                                                required: true
+                                                default: ~
+                                            props: []
+                                            children: none
+                                          - matcher:
+                                              keyword: key
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: template
+                                                description: []
+                                                kind:
+                                                  typedString: key-template
+                                                required: true
+                                                default: ~
+                                            props:
+                                              - name: fallback
+                                                description: []
+                                                kind:
+                                                  typedString: key-template
+                                                required: false
+                                                default: ~
+                                            children: none
+                                          - matcher:
+                                              keyword: transforms-order
+                                            description: []
+                                            examples: []
+                                            args: []
+                                            props: []
+                                            children:
+                                              fixed:
+                                                - matcher:
+                                                    keyword: truncate
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props:
+                                                    - name: length
+                                                      description: []
+                                                      kind: int
+                                                      required: true
+                                                      default: ~
+                                                  children: none
+                                                - matcher:
+                                                    keyword: lowercase
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                                - matcher:
+                                                    keyword: remove-query-params
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                                - matcher:
+                                                    keyword: strip-trailing-slash
+                                                  description: []
+                                                  examples: []
+                                                  args: []
+                                                  props: []
+                                                  children: none
+                                          - matcher:
+                                              keyword: burst
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: value
+                                                description: []
+                                                kind: int
+                                                required: true
+                                                default: ~
+                                            props: []
+                                            children: none
+                                          - matcher:
+                                              keyword: rate
+                                            description: []
+                                            examples: []
+                                            args:
+                                              - name: value
+                                                description: []
+                                                kind: float
+                                                required: true
+                                                default: ~
+                                            props: []
+                                            children: none
+                              - matcher:
+                                  keyword: section
+                                description: []
+                                examples: []
+                                args: []
+                                props: []
+                                children:
+                                  recursive: section

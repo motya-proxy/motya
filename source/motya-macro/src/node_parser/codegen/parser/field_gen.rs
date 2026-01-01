@@ -1,9 +1,11 @@
-use super::Namespaces;
-use super::validation::ValidationGenerator;
-use crate::node_parser::codegen::utils::gen_value_parser;
-use crate::node_parser::model::{ArgSpec, BaseField, PropSpec};
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use super::{Namespaces, validation::ValidationGenerator};
+use crate::node_parser::{
+    codegen::utils::gen_value_parser,
+    model::{ArgSpec, BaseField, PropSpec},
+};
 
 pub struct FieldGenerator<'a> {
     namespaces: &'a Namespaces,

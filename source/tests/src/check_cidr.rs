@@ -1,7 +1,8 @@
 mod tests {
 
-    use crate::common::test_setup::{setup_check_cidr, setup_check_cidr_accept};
     use reqwest::Client;
+
+    use crate::common::test_setup::{setup_check_cidr, setup_check_cidr_accept};
 
     #[tokio::test]
     async fn integration_cidr_block_loopback() {

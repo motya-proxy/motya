@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use fqdn::FQDN;
 
 use crate::common_types::{
+    balancer::BalancerConfig,
     builtin_filters_name::load_definitions_table,
-    definitions::{BalancerConfig, FilterChain, PluginDefinition},
+    definitions::{FilterChain, PluginDefinition},
     rate_limiter::{RateLimitPolicy, StorageConfig},
 };
 

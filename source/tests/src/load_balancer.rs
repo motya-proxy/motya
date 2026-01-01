@@ -1,11 +1,10 @@
 use std::{io::Write, net::TcpListener, thread, time::Duration};
 
+use motya::app_context::AppContext;
+use motya_config::cli::cli_struct::Cli;
 use reqwest::Client;
 use tempfile::NamedTempFile;
 use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
-
-use motya::app_context::AppContext;
-use motya_config::cli::cli_struct::Cli;
 
 const LB_CONFIG_TEMPLATE: &str = r#"
 system { }

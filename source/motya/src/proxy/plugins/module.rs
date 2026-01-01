@@ -260,11 +260,11 @@ mod tests {
     use std::str::FromStr;
 
     use fqdn::FQDN;
+    use motya_config::common_types::definitions::PluginSource;
     use wasmtime::Engine;
     use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxView};
 
     use crate::proxy::plugins::store::WasmPluginStore;
-    use motya_config::common_types::definitions::PluginSource;
 
     #[derive(Default)]
     pub struct MockState {

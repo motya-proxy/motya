@@ -1,10 +1,11 @@
-use motya_macro::{motya_node, Parser};
 use std::net::SocketAddr;
+
+use motya_macro::{motya_node, NodeSchema, Parser};
 
 use crate::common_types::listeners::{ListenerConfig, ListenerKind, TlsConfig};
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub struct ListenerDef {
     #[node(node_name)]
     pub addr: SocketAddr,
@@ -20,7 +21,7 @@ pub struct ListenerDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "listeners")]
 pub struct ListenersDef {
     #[node(dynamic_child)]

@@ -1,7 +1,8 @@
-use crate::node_parser::model::ParseOptions;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
+
+use crate::node_parser::model::ParseOptions;
 
 pub fn gen_value_parser(ty: &Type, opts: &ParseOptions) -> TokenStream {
     if let Some(func) = &opts.parse_with {

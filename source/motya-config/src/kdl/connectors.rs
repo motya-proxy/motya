@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -9,13 +9,12 @@ use miette::Result;
 
 use crate::{
     common_types::{
+        balancer::{BalancerConfig, DiscoveryKind, HealthCheckKind, SelectionKind},
         connectors::{
             Connectors, ConnectorsLeaf, HttpPeerConfig, MultiServerUpstreamConfig, RouteMatcher,
-            UpstreamConfig, UpstreamContextConfig, UpstreamServer, ALPN,
+            RoutingMode, UpstreamConfig, UpstreamContextConfig, UpstreamServer, ALPN,
         },
-        definitions::{
-            BalancerConfig, ChainItem, ConfiguredFilter, FilterChain, Modificator, NamedFilterChain,
-        },
+        definitions::{ChainItem, ConfiguredFilter, FilterChain, Modificator, NamedFilterChain},
         definitions_table::DefinitionsTable,
         error::ConfigError,
         key_template::{parse_hasher, HashAlgorithm, HashOp, KeyPart},
@@ -23,14 +22,13 @@ use crate::{
         simple_response_type::SimpleResponseConfig,
         value::Value,
     },
-    internal::{DiscoveryKind, HealthCheckKind, SelectionKind, UpstreamOptions},
+    internal::UpstreamOptions,
     kdl::{
         models::{
             chains::{ChainItemDefData, RateLimitDefData, UseChainDef, UseChainDefData},
             connectors::{
                 ConnectorLeafDef, ConnectorLeafDefData, ConnectorsDef, LoadBalanceDef,
-                ProxyDefData, RoutingMode, SectionDef, SelectionAlgDefData, SelectionDef,
-                SelectionDefData,
+                ProxyDefData, SectionDef, SelectionAlgDefData, SelectionDef, SelectionDefData,
             },
         },
         parser::{ctx::ParseContext, spanned::Spanned},
@@ -246,7 +244,7 @@ impl<'a> ConnectorsLinker<'a> {
                             });
                         }
 
-                        let (tls, sni, alpn) = match self
+                        let (_tls, sni, alpn) = match self
                             .resolve_proto_settings(proto.as_deref(), tls_sni.as_deref())
                         {
                             Ok(res) => res,

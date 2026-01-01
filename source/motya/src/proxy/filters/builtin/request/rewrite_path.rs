@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::str::FromStr;
+use std::{collections::BTreeMap, str::FromStr};
 
 use async_trait::async_trait;
 use http::uri::{PathAndQuery, Uri};

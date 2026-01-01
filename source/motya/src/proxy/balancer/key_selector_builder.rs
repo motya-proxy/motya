@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use motya_config::common_types::definitions::BalancerConfig;
+use motya_config::common_types::balancer::BalancerConfig;
 
 use crate::proxy::key_selector::KeySelector;
 

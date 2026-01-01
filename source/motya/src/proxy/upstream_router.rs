@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use http::uri::PathAndQuery;
 use matchit::{InsertError, Router};
+use motya_config::common_types::connectors::{RouteMatcher, UpstreamConfig};
 use pingora::{prelude::HttpPeer, ErrorType};
 
 use crate::proxy::{
@@ -9,7 +10,6 @@ use crate::proxy::{
     context::{ContextInfo, SessionInfo},
     filters::chain_resolver::RuntimeChain,
 };
-use motya_config::common_types::connectors::{RouteMatcher, UpstreamConfig};
 
 pub struct UpstreamContext {
     pub upstream: UpstreamConfig,

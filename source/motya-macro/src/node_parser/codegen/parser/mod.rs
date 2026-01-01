@@ -1,9 +1,10 @@
+use proc_macro2::TokenStream;
+use quote::quote;
+
 use crate::node_parser::{
     codegen::heuristics::ScoreGenerator,
     model::{NodeModel, NodeModelKind},
 };
-use proc_macro2::TokenStream;
-use quote::quote;
 
 mod child_gen;
 mod constructor_gen;

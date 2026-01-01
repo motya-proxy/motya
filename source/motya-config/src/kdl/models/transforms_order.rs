@@ -1,10 +1,11 @@
-use motya_macro::{motya_node, Parser};
 use std::num::NonZeroUsize;
+
+use motya_macro::{motya_node, NodeSchema, Parser};
 
 use crate::common_types::key_template::TransformOp;
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum TransformStepDef {
     #[node(name = "truncate")]
     Truncate {
@@ -23,14 +24,14 @@ pub enum TransformStepDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "transforms-order")]
 pub struct TransformsOrderDef {
     #[node(dynamic_child)]
     pub steps: Vec<TransformStepDef>,
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "profile")]
 pub struct KeyProfileDef {
     #[node(child)]

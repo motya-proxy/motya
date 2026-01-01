@@ -4,6 +4,7 @@ use std::{
     thread,
 };
 
+use fqdn::fqdn;
 use http::uri::PathAndQuery;
 use motya::{
     app_context::{pingora_opt, pingora_server_conf},
@@ -13,10 +14,6 @@ use motya::{
         rate_limiter::registry::StorageRegistry,
     },
 };
-use pingora::server::Server;
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-use fqdn::fqdn;
 use motya_config::{
     common_types::{
         connectors::{Connectors, HttpPeerConfig, UpstreamConfig, UpstreamContextConfig, ALPN},
@@ -27,7 +24,8 @@ use motya_config::{
     },
     internal::{Config, ProxyConfig},
 };
-use wiremock::matchers::any;
+use pingora::server::Server;
+use wiremock::{matchers::any, Mock, MockServer, ResponseTemplate};
 
 pub async fn setup_check_cidr() -> thread::JoinHandle<()> {
     let mock_server = MockServer::start().await;

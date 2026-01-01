@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
 
-use crate::kdl::models::transforms_order::TransformsOrderDef;
-use crate::kdl::{models::key_profile::KeyDef, parser::typed_value::TypedValue};
 use fqdn::FQDN;
-use motya_macro::{motya_node, Parser};
+use motya_macro::{motya_node, NodeSchema, Parser};
 
-#[derive(Parser, Clone, Debug)]
+use crate::kdl::{
+    models::{key_profile::KeyDef, transforms_order::TransformsOrderDef},
+    parser::typed_value::TypedValue,
+};
+
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "filter")]
 pub struct ConfiguredFilterDef {
     #[node(arg)]
@@ -15,7 +18,7 @@ pub struct ConfiguredFilterDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum ChainItemDef {
     #[node(name = "filter")]
     Filter(ConfiguredFilterDef),
@@ -24,7 +27,7 @@ pub enum ChainItemDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "use-chain")]
 pub enum UseChainDef {
     Reference {
@@ -39,7 +42,7 @@ pub enum UseChainDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "rate-limit")]
 pub enum RateLimitDef {
     Reference(

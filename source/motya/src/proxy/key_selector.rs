@@ -1,3 +1,5 @@
+use std::{hash::Hasher, io::Cursor, net::IpAddr};
+
 use cookie::Cookie;
 use http::uri::PathAndQuery;
 use motya_config::common_types::key_template::{HashOp, KeyPart, KeyTemplate, TransformOp};
@@ -7,8 +9,6 @@ use pingora_load_balancing::{
     Backend, LoadBalancer,
 };
 use smallvec::{Array, SmallVec};
-use std::hash::Hasher;
-use std::{io::Cursor, net::IpAddr};
 
 pub trait KeySourceContext {
     fn get_header(&self, name: &str) -> Option<&str>;
@@ -142,15 +142,18 @@ pub fn hash(op: &HashOp, bytes: &[u8]) -> u64 {
 
 #[cfg(test)]
 mod execution_tests {
-    use super::*;
+    use std::{
+        collections::HashMap,
+        net::{IpAddr, Ipv4Addr},
+    };
+
     use cookie::Cookie;
-    use motya_config::common_types::definitions::BalancerConfig;
-    use motya_config::common_types::key_template::{
-        parse_hasher, parse_transform, HashAlgorithm, KeyTemplate, Transform,
+    use motya_config::common_types::{
+        balancer::BalancerConfig, key_template::{HashAlgorithm, KeyTemplate, Transform, parse_hasher, parse_transform}
     };
     use smallvec::SmallVec;
-    use std::collections::HashMap;
-    use std::net::{IpAddr, Ipv4Addr};
+
+    use super::*;
 
     // --- Mock Setup ---
 

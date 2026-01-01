@@ -4,6 +4,13 @@ use arc_swap::ArcSwap;
 use async_trait::async_trait;
 use futures_util::future::try_join_all;
 use http::uri::PathAndQuery;
+use motya_config::{
+    common_types::{
+        connectors::{UpstreamConfig, UpstreamContextConfig},
+        listeners::Listeners,
+    },
+    internal::ProxyConfig,
+};
 use pingora::{prelude::HttpPeer, server::Server, Result};
 use pingora_http::{RequestHeader, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
@@ -11,21 +18,14 @@ use uuid::Uuid;
 
 use crate::proxy::{
     context::{ContextInfo, SessionInfo},
-    filters::builtin::simple_response::SimpleResponse,
     filters::{
+        builtin::simple_response::SimpleResponse,
         chain_resolver::ChainResolver,
         types::{RequestFilterMod, RequestModifyMod, ResponseModifyMod},
     },
     populate_listeners::populate_listners,
     upstream_factory::UpstreamFactory,
     upstream_router::{UpstreamContext, UpstreamRouter},
-};
-use motya_config::{
-    common_types::{
-        connectors::{UpstreamConfig, UpstreamContextConfig},
-        listeners::Listeners,
-    },
-    internal::ProxyConfig,
 };
 
 pub mod balancer;

@@ -1,11 +1,11 @@
-use motya_macro::{motya_node, Parser};
+use motya_macro::{motya_node, NodeSchema, Parser};
 
 use crate::kdl::models::{
     connectors::ConnectorsDef, file_server::FileServerDef, listeners::ListenersDef,
 };
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "services")]
 pub struct ServicesSectionDef {
     #[node(dynamic_child)]
@@ -13,7 +13,7 @@ pub struct ServicesSectionDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub struct ServiceDef {
     #[node(node_name)]
     pub name: String,
@@ -26,7 +26,7 @@ pub struct ServiceDef {
 }
 
 #[motya_node]
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum ServiceMode {
     #[node(name = "file-server")]
     FileServer(FileServerDef),

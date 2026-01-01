@@ -1,8 +1,8 @@
-use super::types::ParseTarget;
-use crate::node_parser::model::BaseField;
-use crate::node_parser::model::BlockSpec;
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use super::types::ParseTarget;
+use crate::node_parser::model::{BaseField, BlockSpec};
 
 pub struct ConstructorGenerator;
 

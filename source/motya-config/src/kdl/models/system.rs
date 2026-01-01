@@ -1,13 +1,13 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use miette::Report;
-use motya_macro::Parser;
+use motya_macro::{NodeSchema, Parser};
 
 use crate::common_types::system_data::{
     ConfigProvider, FilesProviderConfig, HttpProviderConfig, S3ProviderConfig, SystemData,
 };
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 pub enum ConfigProviderDef {
     #[node(name = "files")]
     Files {
@@ -40,14 +40,14 @@ pub enum ConfigProviderDef {
     },
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "providers")]
 pub struct ProvidersContainerDef {
     #[node(dynamic_child, min = 1, max = 1)]
     pub providers: Vec<ConfigProviderDef>,
 }
 
-#[derive(Parser, Clone, Debug)]
+#[derive(Parser, Clone, Debug, NodeSchema)]
 #[node(name = "system")]
 pub struct SystemDataDef {
     #[node(child, name = "threads-per-service")]

@@ -2,21 +2,18 @@ use std::collections::BTreeSet;
 
 use futures_util::FutureExt;
 use miette::{miette, Result};
+use motya_config::{
+    common_types::{
+        balancer::SelectionKind, connectors::{MultiServerUpstreamConfig, UpstreamConfig, UpstreamContextConfig}, definitions::Modificator, key_template::HashOp
+    },
+    internal::UpstreamOptions,
+};
 use pingora::prelude::HttpPeer;
 use pingora_load_balancing::{
     discovery,
     prelude::RoundRobin,
     selection::{consistent::KetamaHashing, FNVHash, Random},
     Backend, Backends, LoadBalancer,
-};
-
-use motya_config::{
-    common_types::{
-        connectors::{MultiServerUpstreamConfig, UpstreamConfig, UpstreamContextConfig},
-        definitions::Modificator,
-        key_template::HashOp,
-    },
-    internal::{SelectionKind, UpstreamOptions},
 };
 
 use crate::proxy::{

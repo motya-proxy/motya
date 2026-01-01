@@ -1,14 +1,22 @@
-use crate::common_types::definitions_table::DefinitionsTable;
-use crate::common_types::error::ConfigError;
-use crate::common_types::file_server::FileServerConfig;
-use crate::common_types::listeners::{ListenerConfig, Listeners};
-use crate::common_types::system_data::SystemData;
-use crate::internal::{Config, ProxyConfig};
-use crate::kdl::connectors::ConnectorsLinker;
-use crate::kdl::definitions::DefinitionsCompiler;
-use crate::kdl::models::listeners::ListenersDef;
-use crate::kdl::models::root::RootDef;
-use crate::kdl::models::services::{ServiceDef, ServiceModeData};
+use crate::{
+    common_types::{
+        definitions_table::DefinitionsTable,
+        error::ConfigError,
+        file_server::FileServerConfig,
+        listeners::{ListenerConfig, Listeners},
+        system_data::SystemData,
+    },
+    internal::{Config, ProxyConfig},
+    kdl::{
+        connectors::ConnectorsLinker,
+        definitions::DefinitionsCompiler,
+        models::{
+            listeners::ListenersDef,
+            root::RootDef,
+            services::{ServiceDef, ServiceModeData},
+        },
+    },
+};
 
 pub struct ConfigLinker<'a> {
     table: &'a mut DefinitionsTable,

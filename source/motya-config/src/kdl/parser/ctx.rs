@@ -1,6 +1,3 @@
-use fqdn::FQDN;
-use kdl::{KdlDocument, KdlEntry, KdlNode};
-use miette::{NamedSource, Result, SourceSpan};
 use std::{
     collections::HashMap,
     fmt::Debug,
@@ -9,6 +6,10 @@ use std::{
     sync::Arc,
     vec::IntoIter,
 };
+
+use fqdn::FQDN;
+use kdl::{KdlDocument, KdlEntry, KdlNode};
+use miette::{NamedSource, Result, SourceSpan};
 
 use crate::{
     common_types::bad::Bad, kdl::parser::typed_value::TypedValue, var_registry::VarRegistry,

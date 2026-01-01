@@ -1,22 +1,26 @@
-use std::collections::{BTreeMap, HashMap};
-use std::time::Duration as StdDuration;
+use std::{collections::BTreeMap, time::Duration as StdDuration};
 
-use crate::common_types::key_template::{parse_hasher, HashAlgorithm};
-use crate::common_types::value::Value;
-use crate::common_types::{
-    definitions::{
-        ChainItem, ConfiguredFilter, FilterChain, PluginDefinition,
-        PluginSource as RuntimePluginSource,
+use crate::{
+    common_types::{
+        balancer::BalancerConfig,
+        definitions::{
+            ChainItem, ConfiguredFilter, FilterChain, PluginDefinition,
+            PluginSource as RuntimePluginSource,
+        },
+        definitions_table::DefinitionsTable,
+        error::ConfigError,
+        key_template::{parse_hasher, HashAlgorithm},
+        rate_limiter::{RateLimitPolicy, StorageConfig},
+        value::Value,
     },
-    definitions_table::DefinitionsTable,
-    error::ConfigError,
-    rate_limiter::{RateLimitPolicy, StorageConfig},
-};
-use crate::kdl::models::chains::{ChainItemDefData, RateLimitDefData};
-use crate::kdl::models::definitions::{
-    DefinitionsDef, KeyProfileNamespaceDef, KeyProfileTemplateDef, KeyProfilesSectionDefData,
-    ModifiersNamespaceDef, ModifiersSectionDefData, PluginDef, RateLimitPolicyDef, StorageDef,
-    StorageDefData,
+    kdl::models::{
+        chains::{ChainItemDefData, RateLimitDefData},
+        definitions::{
+            DefinitionsDef, KeyProfileNamespaceDef, KeyProfileTemplateDef,
+            KeyProfilesSectionDefData, ModifiersNamespaceDef, ModifiersSectionDefData, PluginDef,
+            RateLimitPolicyDef, StorageDef, StorageDefData,
+        },
+    },
 };
 
 pub struct DefinitionsCompiler;
@@ -380,7 +384,7 @@ impl DefinitionsCompiler {
         // =====================================================================
         // 4. INSERT
         // =====================================================================
-        let config = crate::common_types::definitions::BalancerConfig {
+        let config = BalancerConfig {
             source,
             fallback,
             algorithm,

@@ -1,13 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use std::net::TcpListener;
-    use std::thread;
-    use std::time::Duration;
-
-    use motya_config::cli::cli_struct::{Cli, Commands};
-    use reqwest::Client;
+    use std::{net::TcpListener, thread, time::Duration};
 
     use motya::app_context::AppContext;
+    use motya_config::cli::cli_struct::{Cli, Commands};
+    use reqwest::Client;
 
     fn get_free_port() -> u16 {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();

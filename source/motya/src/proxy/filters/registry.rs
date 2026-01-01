@@ -1,7 +1,8 @@
+use std::collections::{BTreeMap, HashMap};
+
 use fqdn::FQDN;
 use motya_config::common_types::value::Value;
 use pingora::{Error, ErrorType, Result};
-use std::collections::{BTreeMap, HashMap};
 
 use crate::proxy::{
     plugins::module::WasmModule, RequestFilterMod, RequestModifyMod, ResponseModifyMod,
@@ -67,26 +68,31 @@ impl FilterRegistry {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeMap, HashMap};
-    use std::str::FromStr;
-    use std::sync::Arc;
+    use std::{
+        collections::{BTreeMap, HashMap},
+        str::FromStr,
+        sync::Arc,
+    };
 
     use async_trait::async_trait;
-    use motya_config::common_types::value::Value;
-
-    use crate::proxy::filters::chain_resolver::ChainResolver;
-    use crate::proxy::filters::generate_registry::load_registry;
-    use crate::proxy::filters::registry::{
-        FilterInstance, FilterRegistry, RegistryFilterContainer,
-    };
-    use crate::proxy::rate_limiter::registry::StorageRegistry;
-    use crate::proxy::MotyaContext;
-    use crate::proxy::{RequestFilterMod, RequestModifyMod};
     use fqdn::FQDN;
-    use motya_config::common_types::definitions::{ChainItem, ConfiguredFilter, FilterChain};
-    use motya_config::common_types::definitions_table::DefinitionsTable;
+    use motya_config::common_types::{
+        definitions::{ChainItem, ConfiguredFilter, FilterChain},
+        definitions_table::DefinitionsTable,
+        value::Value,
+    };
     use pingora::Result;
     use pingora_proxy::Session;
+
+    use crate::proxy::{
+        filters::{
+            chain_resolver::ChainResolver,
+            generate_registry::load_registry,
+            registry::{FilterInstance, FilterRegistry, RegistryFilterContainer},
+        },
+        rate_limiter::registry::StorageRegistry,
+        MotyaContext, RequestFilterMod, RequestModifyMod,
+    };
 
     struct MockHeaderFilter;
 

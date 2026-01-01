@@ -1,11 +1,13 @@
-use std::fmt::Debug;
-use std::net::SocketAddr;
+use std::{fmt::Debug, net::SocketAddr, str::FromStr};
 
 use http::uri::PathAndQuery;
+use miette::miette;
 
-use crate::common_types::{definitions::Modificator, simple_response_type::SimpleResponseConfig};
-use crate::internal::UpstreamOptions;
-use crate::kdl::parser::spanned::Spanned;
+use crate::{
+    common_types::{definitions::Modificator, simple_response_type::SimpleResponseConfig},
+    internal::UpstreamOptions,
+    kdl::{parser::spanned::Spanned, schema::{definitions::ValueKind, value_info::KdlValueInfo}},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ALPN {
@@ -74,4 +76,33 @@ pub struct UpstreamContextConfig {
     pub upstream: UpstreamConfig,
     pub chains: Vec<Modificator>,
     pub lb_options: Option<UpstreamOptions>,
+}
+
+#[derive(Clone, Debug)]
+pub enum RoutingMode {
+    Exact,
+    Prefix,
+}
+
+impl FromStr for RoutingMode {
+    type Err = miette::Report;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "exact" => Ok(RoutingMode::Exact),
+            "prefix" => Ok(RoutingMode::Prefix),
+            other => Err(miette!(
+                "Available modes: 'exact' (full path match) or 'prefix' (base path match). got {}",
+                other
+            )),
+        }
+    }
+}
+
+impl KdlValueInfo for RoutingMode {
+    fn value_kind() -> ValueKind {
+        ValueKind::Enum(vec![
+            "exact".into(),
+            "prefix".into(),
+        ])
+    }
 }

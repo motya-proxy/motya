@@ -1,19 +1,24 @@
-use std::{collections::HashSet, path::{Path, PathBuf}, sync::Arc};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use async_recursion::async_recursion;
 use dashmap::DashMap;
 use kdl::KdlDocument;
 use miette::NamedSource;
+use motya_config::{
+    common_types::error::{ConfigError, ParseError},
+    config_source::ConfigSource,
+    kdl::{
+        models::root::PartialParsedRoot,
+        parser::{ctx::ParseContext, parsable::KdlParsable},
+    },
+};
+use path_clean::PathClean;
 use ropey::Rope;
 use tower_lsp::lsp_types::Url;
-use path_clean::PathClean;
-
-use motya_config::{
-    common_types::error::{ConfigError, ParseError}, config_source::ConfigSource, kdl::{
-        models::imports::PartialParsedRoot, 
-        parser::{ctx::ParseContext, parsable::KdlParsable}
-    }
-};
 
 #[derive(Clone, Default)]
 pub struct LspConfigSource {
@@ -23,7 +28,7 @@ pub struct LspConfigSource {
 impl ConfigSource for LspConfigSource {
     async fn collect(&self, entry_path: PathBuf) -> miette::Result<Vec<(KdlDocument, String)>> {
         let (docs, errors) = self.collect_lossy(entry_path).await;
-        
+
         if !errors.is_empty() {
             Err(miette::Report::new(errors))
         } else {
@@ -31,7 +36,10 @@ impl ConfigSource for LspConfigSource {
         }
     }
 
-    async fn collect_lossy(&self, entry_path: PathBuf) -> (Vec<(KdlDocument, String)>, ConfigError) {
+    async fn collect_lossy(
+        &self,
+        entry_path: PathBuf,
+    ) -> (Vec<(KdlDocument, String)>, ConfigError) {
         let mut runner = Runner {
             documents: self.documents.clone(),
             visited: HashSet::new(),
@@ -50,17 +58,14 @@ impl ConfigSource for LspConfigSource {
                     e,
                     None,
                     Some("Check if the entry point file exists".to_string()),
-                    src, 
+                    src,
                 ));
             }
         }
 
         (runner.found_docs, runner.errors)
     }
-
 }
-
-
 
 struct Runner {
     documents: Arc<DashMap<Url, Rope>>,
@@ -70,10 +75,8 @@ struct Runner {
 }
 
 impl Runner {
-    
     #[async_recursion]
     async fn process_file(&mut self, path: PathBuf, content: String) {
-        
         if self.visited.contains(&path) {
             return;
         }
@@ -92,17 +95,16 @@ impl Runner {
                 return;
             }
         };
-        
+
         let ctx = ParseContext::new(doc.clone(), &name);
-        
+
         let root_result = PartialParsedRoot::parse_node(&ctx, &());
 
         match root_result {
             Ok(root) => {
-                
                 if let Some(imports) = root.imports {
                     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
-                    
+
                     for path_node in imports.paths {
                         let (path_str, node_ctx) = path_node.into_parts();
                         let resolved_path = base_dir.join(&path_str.value).clean();
@@ -114,15 +116,15 @@ impl Runner {
                         match self.read_content(&resolved_path).await {
                             Ok(sub_content) => {
                                 self.process_file(resolved_path, sub_content).await;
-                            },
+                            }
                             Err(msg) => {
                                 let report = node_ctx.err_value(msg);
-                                self.errors.push_report(report, &node_ctx.ctx); 
+                                self.errors.push_report(report, &node_ctx.ctx);
                             }
                         }
                     }
                 }
-            },
+            }
             Err(report) => {
                 self.errors.merge(report);
             }
@@ -132,7 +134,9 @@ impl Runner {
     }
 
     async fn read_content(&self, path: &Path) -> Result<String, String> {
-        if let Ok(url) = Url::from_file_path(path) && let Some(rope) = self.documents.get(&url) {
+        if let Ok(url) = Url::from_file_path(path)
+            && let Some(rope) = self.documents.get(&url)
+        {
             return Ok(rope.to_string());
         }
 

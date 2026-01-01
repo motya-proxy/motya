@@ -2,9 +2,8 @@ use std::net::IpAddr;
 
 use cookie::Cookie;
 use http::uri::PathAndQuery;
-use pingora_http::RequestHeader;
-
 use pingora::protocols::l4::socket::SocketAddr;
+use pingora_http::RequestHeader;
 
 use crate::proxy::key_selector::KeySourceContext;
 

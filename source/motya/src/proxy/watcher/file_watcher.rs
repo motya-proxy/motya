@@ -4,19 +4,19 @@ use std::{
 
 use futures_util::future::try_join_all;
 use miette::IntoDiagnostic;
-use notify::{Event, RecursiveMode, Watcher};
-use tokio::sync::mpsc;
-
-use crate::{
-    fs_adapter::TokioFs,
-    proxy::{upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter, SharedProxyState},
-};
 use motya_config::{
     common_types::definitions_table::DefinitionsTable,
     config_source::ConfigSource,
     internal::{Config, ProxyConfig},
     kdl::fs_loader::FileCollector,
     loader::{ConfigLoader, FileConfigLoaderProvider},
+};
+use notify::{Event, RecursiveMode, Watcher};
+use tokio::sync::mpsc;
+
+use crate::{
+    fs_adapter::TokioFs,
+    proxy::{upstream_factory::UpstreamFactory, upstream_router::UpstreamRouter, SharedProxyState},
 };
 
 pub struct ConfigWatcher<
@@ -152,6 +152,12 @@ mod tests {
 
     use http::{uri::PathAndQuery, StatusCode};
     use miette::Result;
+    use motya_config::common_types::{
+        connectors::{Connectors, UpstreamConfig, UpstreamContextConfig},
+        definitions_table::DefinitionsTable,
+        listeners::Listeners,
+        simple_response_type::SimpleResponseConfig,
+    };
     use tempfile::env::temp_dir;
     use tokio::sync::Mutex;
 
@@ -160,12 +166,6 @@ mod tests {
         filters::{chain_resolver::ChainResolver, registry::FilterRegistry},
         rate_limiter::registry::StorageRegistry,
         ArcSwap,
-    };
-    use motya_config::common_types::{
-        connectors::{Connectors, UpstreamConfig, UpstreamContextConfig},
-        definitions_table::DefinitionsTable,
-        listeners::Listeners,
-        simple_response_type::SimpleResponseConfig,
     };
 
     #[derive(Clone)]

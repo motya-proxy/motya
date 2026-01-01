@@ -1,8 +1,11 @@
-use super::attrs::NodeFieldAttrs;
-use crate::node_parser::model::{DocTokens, ParseOptions};
-use crate::node_parser::utils::{DocParser, TypeAnalyzer};
 use proc_macro2::TokenStream;
 use syn::{Field, Type};
+
+use super::attrs::NodeFieldAttrs;
+use crate::node_parser::{
+    model::{DocTokens, ParseOptions},
+    utils::{DocParser, TypeAnalyzer},
+};
 
 pub struct AnalyzedField {
     pub original: Field,

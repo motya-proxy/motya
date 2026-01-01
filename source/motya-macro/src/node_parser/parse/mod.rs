@@ -1,11 +1,13 @@
-use darling::FromField;
-use darling::{FromDeriveInput, FromVariant};
-use syn::spanned::Spanned;
-use syn::{DeriveInput, Result};
+use darling::{FromDeriveInput, FromField, FromVariant};
+use syn::{DeriveInput, Result, spanned::Spanned};
 
 mod analyzer;
 mod attrs;
 mod registry;
+
+use analyzer::AnalyzedField;
+use attrs::{NodeFieldAttrs, NodeStructAttrs};
+use registry::FieldRegistry;
 
 use crate::node_parser::{
     model::{
@@ -15,9 +17,6 @@ use crate::node_parser::{
     parse::attrs::NodeVariantAttrs,
     utils::DocParser,
 };
-use analyzer::AnalyzedField;
-use attrs::{NodeFieldAttrs, NodeStructAttrs};
-use registry::FieldRegistry;
 
 pub fn parse(input: DeriveInput) -> Result<NodeModel> {
     let struct_attrs = NodeStructAttrs::from_derive_input(&input)?;

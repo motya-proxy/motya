@@ -1,9 +1,9 @@
-use http::StatusCode;
-use miette::{miette, Context, IntoDiagnostic, Result};
-use reqwest::Client;
 use std::time::Duration;
 
+use http::StatusCode;
+use miette::{miette, Context, IntoDiagnostic, Result};
 use motya_config::common_types::definitions::PluginSource;
+use reqwest::Client;
 
 pub struct PluginLoader;
 
